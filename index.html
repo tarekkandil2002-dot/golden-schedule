@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#16233B">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>جدول الحصص الذهبي</title>
+<style>
+:root{--navy:#16233B;--gold:#C8962E;--gold-soft:#F3E6C4;--bg:#F2F4F7;--card:#fff;--ink:#1B2433;--mute:#667085;--line:#DDE2EA;--red:#B42318}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:90px}
+header{background:var(--navy);color:var(--gold);padding:18px 16px 14px;text-align:center;font-size:22px;font-weight:700}
+.next{background:var(--navy);color:#fff;margin:0;padding:0 16px 18px;text-align:center}
+.next b{display:block;font-size:19px;color:var(--gold-soft)}
+.next span{font-size:14px;opacity:.85}
+.tabs{display:flex;overflow-x:auto;gap:6px;padding:10px 10px 4px;background:var(--bg);position:sticky;top:0;z-index:2}
+.tabs button{flex:1 0 auto;border:1px solid var(--line);background:#fff;border-radius:18px;padding:8px 14px;font:inherit;font-size:14px;color:var(--ink)}
+.tabs button.on{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:700}
+.tabs button.today:not(.on){border-color:var(--gold)}
+main{padding:10px 12px;max-width:560px;margin:auto}
+.cls{background:var(--card);border-radius:10px;border-right:5px solid var(--gold);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.cls .t{min-width:62px;text-align:center;font-weight:700;color:var(--navy);font-size:17px;line-height:1.3}
+.cls .t small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.cls .i{flex:1}
+.cls .i b{display:block;font-size:16px}
+.cls .i span{color:var(--mute);font-size:14px}
+.cls button{border:0;background:none;font-size:13px;color:var(--mute);padding:6px}
+.cls.now{background:var(--gold-soft)}
+.empty{text-align:center;color:var(--mute);padding:36px 10px;line-height:1.8}
+.bar{background:#fff;border:1px dashed var(--gold);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:700;background:var(--gold);color:#fff}
+.btn.alt{background:var(--navy)}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.dock{position:fixed;bottom:0;inset-inline:0;background:#fff;border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;justify-content:center}
+.dock .btn{flex:1;max-width:240px}
+dialog{max-height:90vh;overflow:auto;border:0;border-radius:14px;padding:18px;width:min(92vw,420px);margin:auto;direction:rtl}
+dialog::backdrop{background:rgba(22,35,59,.55)}
+label{display:block;font-size:14px;margin:10px 0 4px;color:var(--mute)}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.row{display:flex;gap:8px}.row>div{flex:1}
+.acts{display:flex;gap:8px;margin-top:16px}.acts .btn{flex:1}
+.prow{align-items:center;margin-bottom:6px}.prow span{width:56px;font-size:14px}
+.err{color:var(--red);font-size:13px;margin-top:8px;min-height:16px}
+</style>
+</head>
+<body>
+<header>جدول الحصص الذهبي</header>
+<div class="next" id="next"></div>
+<nav class="tabs" id="tabs"></nav>
+<main>
+  <div class="bar" id="permBar" hidden><span>فعّل الإشعارات عشان يوصلك تنبيه قبل كل حصة.</span><button class="btn" id="permBtn">تفعيل</button></div>
+  <div id="list"></div>
+</main>
+<div class="dock">
+  <button class="btn" id="addBtn">إضافة حصة</button>
+  <button class="btn alt" id="icsBtn">تصدير للتقويم</button>
+  <button class="btn ghost" id="setBtn">الإعدادات</button>
+</div>
+
+<dialog id="dlg">
+  <h3 id="dlgT">حصة جديدة</h3>
+  <label>اليوم</label><select id="fDay"></select>
+  <label>رقم الحصة</label><select id="fP"></select>
+  <label>الفصل</label><input id="fName" placeholder="مثال: 5/2">
+  <label>المادة</label><input id="fSub" placeholder="مثال: اللغة الإنجليزية">
+  <div class="err" id="err"></div>
+  <div class="acts"><button class="btn" id="saveBtn">حفظ</button><button class="btn ghost" id="cancelBtn">إلغاء</button></div>
+</dialog>
+
+<dialog id="dlg2">
+  <h3>الإعدادات</h3>
+  <label>ينبّهني قبل الحصة بـ (دقائق)</label><input type="number" id="fLead" min="1" max="60">
+  <label>مواعيد الحصص (تقدر تعدّلها)</label><div id="pRows"></div>
+  <div class="err" id="err2"></div>
+  <p class="err" style="color:var(--mute)">الإشعار بيظهر والتطبيق شغّال. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
+  <div class="acts"><button class="btn" id="leadSave">حفظ</button><button class="btn ghost" id="leadCancel">إلغاء</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const DAYS=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const ORDER=[6,0,1,2,3,4,5], ICS=['SU','MO','TU','WE','TH','FR','SA'];
+let S={classes:[],lead:5,notified:{}};
+try{S=Object.assign(S,JSON.parse(localStorage.getItem('ghs')||'{}'))}catch(e){}
+const defP=()=>Array.from({length:10},(_,i)=>{const a=480+i*45,f=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');return{start:f(a),end:f(a+40)}});
+if(!Array.isArray(S.periods)||S.periods.length!==10)S.periods=defP();
+const save=()=>{try{localStorage.setItem('ghs',JSON.stringify(S))}catch(e){}};
+let sel=new Date().getDay(), editId=null;
+const mins=t=>{const [h,m]=t.split(':');return +h*60+ +m};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const byDay=d=>S.classes.filter(c=>c.day===d).sort((a,b)=>mins(a.start)-mins(b.start));
+const hm=t=>{const [h,m]=t.split(':').map(Number);return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' ص':' م')};
+
+function nextClass(){
+  const n=new Date(), nm=n.getHours()*60+n.getMinutes()+n.getSeconds()/60;
+  for(let o=0;o<8;o++){
+    const d=(n.getDay()+o)%7;
+    for(const c of byDay(d)){
+      const diff=o*1440+mins(c.start)-nm;
+      if(diff>0) return {c,diff,o};
+    }
+  }
+  return null;
+}
+function fmtDiff(m){
+  m=Math.ceil(m); if(m<60) return m+' دقيقة';
+  if(m<1440){const h=Math.floor(m/60),r=m%60;return h+' ساعة'+(r?' و '+r+' دقيقة':'')}
+  return Math.floor(m/1440)+' يوم';
+}
+function renderNext(){
+  const x=nextClass(), el=$('#next');
+  if(!x){el.innerHTML='<span>أضف حصصك وهيظهر هنا موعد الحصة الجاية</span>';return}
+  el.innerHTML='<span>الحصة الجاية بعد '+fmtDiff(x.diff)+'</span><b>'+esc(x.c.subject)+' - '+esc(x.c.name)+'</b><span>'+DAYS[x.c.day]+' '+hm(x.c.start)+'</span>';
+}
+function render(){
+  const today=new Date().getDay();
+  $('#tabs').innerHTML=ORDER.map(d=>'<button data-d="'+d+'" class="'+(d===sel?'on ':'')+(d===today?'today':'')+'">'+DAYS[d]+'</button>').join('');
+  const list=byDay(sel), n=new Date(), nm=n.getHours()*60+n.getMinutes();
+  $('#list').innerHTML=list.length?list.map(c=>{
+    const live=sel===today&&nm>=mins(c.start)&&nm<mins(c.end);
+    return '<div class="cls'+(live?' now':'')+'"><div class="t">'+hm(c.start)+'<small>إلى '+hm(c.end)+'</small></div><div class="i"><b>'+esc(c.subject)+'</b><span>'+(c.p?'حصة '+c.p+' • ':'')+'فصل '+esc(c.name)+(live?' • جارية الآن':'')+'</span></div><button data-e="'+c.id+'">تعديل</button></div>';
+  }).join(''):'<div class="empty">مفيش حصص يوم '+DAYS[sel]+'.<br>دوس «إضافة حصة» عشان تضيف أول حصة.</div>';
+  $('#permBar').hidden=!('Notification' in window)||Notification.permission==='granted';
+  renderNext();
+}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b){sel=+b.dataset.d;render()}};
+$('#list').onclick=e=>{const b=e.target.closest('[data-e]');if(b)openForm(b.dataset.e)};
+
+$('#fDay').innerHTML=ORDER.map(d=>'<option value="'+d+'">'+DAYS[d]+'</option>').join('');
+function openForm(id){
+  editId=id||null; const c=S.classes.find(x=>x.id===id)||{day:sel,p:1,name:'',subject:''};
+  $('#dlgT').textContent=id?'تعديل الحصة':'حصة جديدة';
+  $('#fP').innerHTML=S.periods.map((p,i)=>'<option value="'+(i+1)+'">الحصة '+(i+1)+' ('+hm(p.start)+' - '+hm(p.end)+')</option>').join('');$('#fDay').value=c.day;$('#fP').value=c.p||1;$('#fName').value=c.name;$('#fSub').value=c.subject;
+  $('#err').textContent='';
+  let del=$('#delBtn'); if(del)del.remove();
+  if(id){del=document.createElement('button');del.id='delBtn';del.className='btn ghost';del.style.color='var(--red)';del.textContent='حذف';
+    del.onclick=()=>{if(confirm('تحذف الحصة دي؟')){S.classes=S.classes.filter(x=>x.id!==id);save();$('#dlg').close();render()}};
+    $('#dlg .acts').appendChild(del)}
+  $('#dlg').showModal();
+}
+$('#addBtn').onclick=()=>openForm();
+$('#cancelBtn').onclick=()=>$('#dlg').close();
+$('#saveBtn').onclick=()=>{
+  const p=+$('#fP').value;
+  const c={day:+$('#fDay').value,p,start:S.periods[p-1].start,end:S.periods[p-1].end,name:$('#fName').value.trim(),subject:$('#fSub').value.trim()};
+  if(!c.name||!c.subject){$('#err').textContent='اكتب الفصل والمادة.';return}
+  if(S.classes.some(x=>x.day===c.day&&x.p===c.p&&x.id!==editId)){$('#err').textContent='في حصة مسجّلة بالفعل في الحصة '+p+' يوم '+DAYS[c.day]+'.';return}
+  if(editId){Object.assign(S.classes.find(x=>x.id===editId),c)}else{c.id='c'+Date.now();S.classes.push(c)}
+  save();sel=c.day;$('#dlg').close();render();
+};
+
+$('#setBtn').onclick=()=>{$('#fLead').value=S.lead;$('#err2').textContent='';
+  $('#pRows').innerHTML=S.periods.map((p,i)=>'<div class="row prow"><span>حصة '+(i+1)+'</span><input type="time" data-s="'+i+'" value="'+p.start+'"><input type="time" data-e="'+i+'" value="'+p.end+'"></div>').join('');
+  $('#dlg2').showModal()};
+$('#leadCancel').onclick=()=>$('#dlg2').close();
+$('#leadSave').onclick=()=>{
+  const np=S.periods.map((p,i)=>({start:$('[data-s="'+i+'"]').value,end:$('[data-e="'+i+'"]').value}));
+  for(let i=0;i<np.length;i++){if(!np[i].start||!np[i].end||mins(np[i].end)<=mins(np[i].start)){$('#err2').textContent='راجع مواعيد الحصة '+(i+1)+': النهاية لازم تكون بعد البداية.';return}}
+  S.periods=np;S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));
+  S.classes.forEach(c=>{if(c.p){c.start=np[c.p-1].start;c.end=np[c.p-1].end}});
+  save();$('#dlg2').close();render()};
+
+$('#permBtn').onclick=async()=>{try{await Notification.requestPermission()}catch(e){}render()};
+
+async function notify(c){
+  const t='حصة بعد '+S.lead+' دقائق', b=c.subject+' - فصل '+c.name+' | '+hm(c.start);
+  try{const r=await navigator.serviceWorker.getRegistration();if(r){await r.showNotification(t,{body:b,icon:'icon-192.png',vibrate:[200,100,200],tag:c.id,lang:'ar',dir:'rtl'});return}}catch(e){}
+  try{new Notification(t,{body:b})}catch(e){}
+}
+function tick(){
+  render0();
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const n=new Date(), nm=n.getHours()*60+n.getMinutes()+n.getSeconds()/60;
+  const ds=n.getFullYear()+'-'+n.getMonth()+'-'+n.getDate();
+  byDay(n.getDay()).forEach(c=>{
+    const diff=mins(c.start)-nm, k=ds+c.id;
+    if(diff>0&&diff<=S.lead&&!S.notified[k]){S.notified[k]=1;notify(c)}
+  });
+  Object.keys(S.notified).forEach(k=>{if(!k.startsWith(ds))delete S.notified[k]});
+  save();
+}
+function render0(){renderNext()}
+setInterval(tick,15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();tick()}});
+
+function buildICS(){
+  const p=n=>String(n).padStart(2,'0'), now=new Date();
+  const stamp=now.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const e=s=>s.replace(/[\\;,]/g,'\\$&');
+  const o=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Golden Schedule//AR','CALSCALE:GREGORIAN'];
+  S.classes.forEach(c=>{
+    const d=new Date();d.setHours(0,0,0,0);while(d.getDay()!==c.day)d.setDate(d.getDate()+1);
+    const f=t=>d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+t.replace(':','')+'00';
+    o.push('BEGIN:VEVENT','UID:'+c.id+'@golden-schedule','DTSTAMP:'+stamp,'DTSTART:'+f(c.start),'DTEND:'+f(c.end),
+      'RRULE:FREQ=WEEKLY;BYDAY='+ICS[c.day],'SUMMARY:'+e(c.subject+' - فصل '+c.name),
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:حصة قريبة','TRIGGER:-PT'+S.lead+'M','END:VALARM','END:VEVENT');
+  });
+  o.push('END:VCALENDAR');return o.join('\r\n');
+}
+$('#icsBtn').onclick=async()=>{
+  if(!S.classes.length){alert('أضف حصة واحدة على الأقل الأول.');return}
+  const file=new File([buildICS()],'golden-schedule.ics',{type:'text/calendar'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'جدول الحصص'});return}}catch(e){if(e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download='golden-schedule.ics';document.body.appendChild(a);a.click();a.remove();
+};
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+render();tick();
+</script>
+</body>
+</html>
