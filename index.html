@@ -25,6 +25,17 @@ header .rib{display:inline-block;background:#E53935;color:#fff;font-weight:800;f
 .big{font-size:36px;font-weight:800;color:var(--navy);direction:ltr;line-height:1.2}
 .pbar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 2px}
 .pbar i{display:block;height:100%;background:var(--gold)}
+.track{position:relative;height:56px;margin:8px 4px 4px}
+.track .pbar{position:absolute;bottom:0;inset-inline:0;margin:0}
+.kid{position:absolute;bottom:5px;right:3%;width:42px;height:46px;transform:translateX(50%);transition:right 1s linear;z-index:2}
+.kid svg{display:block;transform:scaleX(-1);overflow:visible}
+.arm{transform-origin:22px 17px}.leg{transform-origin:22px 27px}
+.leg,.arm{animation:swing .55s ease-in-out infinite}
+.l2,.a1{animation-delay:-.275s}
+.bob{animation:bob .275s ease-in-out infinite}
+@keyframes swing{0%,100%{transform:rotate(-42deg)}50%{transform:rotate(42deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+@media(prefers-reduced-motion:reduce){.leg,.arm,.bob{animation:none}}
 .gw{padding:0 6px}
 table{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
 th,td{text-align:center;padding:0;border:0;border-radius:10px}
@@ -66,7 +77,20 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
 </head>
 <body>
 <header id="hdr"></header>
-<div class="next" id="next"></div>
+<div class="next" id="next">
+  <div id="lvA"></div>
+  <div class="sec" id="lvC" hidden></div>
+  <div class="track" id="trk" hidden><div class="pbar"><i id="trkFill"></i></div><div class="kid" id="kid"><svg viewBox="0 0 40 44" width="42" height="46"><g class="bob"><g transform="rotate(-8 22 27)">
+<g class="leg l2"><line x1="22" y1="27" x2="22" y2="39" stroke="#2B4C9B" stroke-width="4" stroke-linecap="round"/><ellipse cx="23.5" cy="41.5" rx="4" ry="2.3" fill="#fff" stroke="#16233B" stroke-width="1"/></g>
+<g class="arm a2"><line x1="22" y1="17" x2="22" y2="26" stroke="#FFD7B0" stroke-width="3" stroke-linecap="round"/></g>
+<rect x="16.5" y="14" width="11" height="14" rx="4.5" style="fill:var(--kc)"/>
+<circle cx="23" cy="8.5" r="6.2" fill="#FFD7B0"/><path d="M16.8 8.5a6.2 6.2 0 0 1 12.4 0c-2.4-2.6-10-2.6-12.4 0z" fill="#4A2F1B"/><circle cx="26" cy="9" r="1" fill="#16233B"/><path d="M24.5 11.6q1.6 1.4 3.2 0" stroke="#B4543A" fill="none" stroke-width="1" stroke-linecap="round"/>
+<g class="leg l1"><line x1="22" y1="27" x2="22" y2="39" stroke="#2B4C9B" stroke-width="4" stroke-linecap="round"/><ellipse cx="23.5" cy="41.5" rx="4" ry="2.3" fill="#fff" stroke="#16233B" stroke-width="1"/></g>
+<g class="arm a1"><line x1="22" y1="17" x2="22" y2="26" stroke="#FFD7B0" stroke-width="3" stroke-linecap="round"/></g>
+</g></g></svg></div></div>
+  <div id="lvT" hidden></div>
+  <div id="lvN"></div>
+</div>
 <div class="bar" id="permBar" hidden><span>فعّل الإشعارات والصوت عشان يوصلك تنبيه قبل كل حصة.</span><button class="btn" id="permBtn">تفعيل</button></div>
 <div id="welcome" hidden style="background:#fff;border:3px solid var(--gold);border-radius:20px;padding:14px;margin:0 12px 12px;text-align:center;line-height:1.7;box-shadow:0 6px 16px rgba(0,0,0,.1)">
   <b style="font-size:18px;color:var(--blue)">أهلاً بيك في جدول الحصص 👋</b><br>
@@ -136,6 +160,7 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
   <label>قبل الحصة بـ (دقائق)</label><input type="number" id="fLead" min="1" max="60">
   <label class="chk"><input type="checkbox" id="fSnd"> صوت تنبيه</label>
   <label class="chk"><input type="checkbox" id="fVc"> إعلان صوتي بالكلام</label>
+  <label class="chk"><input type="checkbox" id="fPin"> ثبّت إشعار الحصة الحالية طول اليوم الدراسي</label>
   <button class="btn alt" id="testBtn" type="button">جرّب التنبيه الآن</button>
   <p class="note">التنبيهات (الصوت والإشعار والرسالة) بتشتغل والتطبيق مفتوح. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
   <h4>تصدير التقويم</h4>
@@ -193,16 +218,20 @@ function hms(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m
 function live(){
   const n=new Date(),nowS=n.getHours()*3600+n.getMinutes()*60+n.getSeconds();
   const h12=n.getHours()%12||12,ap=n.getHours()<12?'ص':'م';
-  let h='<div class="dt">'+dn(n.getDay())+' - '+n.getFullYear()+'/'+pad2(n.getMonth()+1)+'/'+pad2(n.getDate())+'</div><div class="clk">'+h12+':'+pad2(n.getMinutes())+':'+pad2(n.getSeconds())+'<small>'+ap+'</small></div>';
+  $('#lvA').innerHTML='<div class="dt">'+dn(n.getDay())+' - '+n.getFullYear()+'/'+pad2(n.getMonth()+1)+'/'+pad2(n.getDate())+'</div><div class="clk">'+h12+':'+pad2(n.getMinutes())+':'+pad2(n.getSeconds())+'<small>'+ap+'</small></div>';
   const cur=byDay(n.getDay()).find(c=>nowS>=mins(st(c))*60&&nowS<mins(en(c))*60);
   let col='var(--gold)';
-  if(cur){const a=mins(st(cur))*60,b=mins(en(cur))*60;col=colorOf(cur.name)[0];
-    h+='<div class="sec">الحصة الحالية: <b>'+esc(cur.name)+' - '+esc(cur.subject)+'</b>باقي من الحصة<div class="big">'+hms(b-nowS)+'</div><div class="pbar"><i style="width:'+Math.round((nowS-a)/(b-a)*100)+'%;background:'+col+'"></i></div>'+hmf(st(cur))+' إلى '+hmf(en(cur))+'</div>'}
-  const x=nextClass();
-  if(x){const c2=colorOf(x.c.name)[0];if(!cur)col=c2;
-    h+='<div class="sec">'+(cur?'الحصة الجاية':'مفيش حصة دلوقتي. الحصة الجاية')+': <b>'+esc(x.c.name)+' - '+esc(x.c.subject)+'</b>'+(x.diff<1440?'بعد':'بعد')+'<div class="big" style="font-size:'+(cur?'24':'34')+'px">'+(x.diff<1440?hms(x.diff*60):fmtDiff(x.diff))+'</div>'+dn(x.c.day)+' '+hmf(st(x.c))+'</div>'}
-  else if(!cur)h+='<div class="sec">دوس على أي خانة فاضية عشان تضيف حصة</div>';
-  const el=$('#next');el.style.borderColor=col;el.innerHTML=h;
+  $('#lvC').hidden=$('#trk').hidden=$('#lvT').hidden=!cur;
+  if(cur){const a=mins(st(cur))*60,b=mins(en(cur))*60,pc=Math.min(100,Math.max(0,(nowS-a)/(b-a)*100));col=colorOf(cur.name)[0];
+    $('#lvC').innerHTML='الحصة الحالية: <b>'+esc(cur.name)+' - '+esc(cur.subject)+'</b>باقي من الحصة<div class="big">'+hms(b-nowS)+'</div>';
+    const f=$('#trkFill');f.style.width=pc+'%';f.style.background=col;
+    const k=$('#kid');k.style.right=Math.min(97,Math.max(3,pc))+'%';k.style.setProperty('--kc',col);
+    $('#lvT').textContent=hmf(st(cur))+' إلى '+hmf(en(cur))}
+  const x=nextClass();let h='';
+  if(x){if(!cur)col=colorOf(x.c.name)[0];
+    h='<div class="sec">'+(cur?'الحصة الجاية':'مفيش حصة دلوقتي. الحصة الجاية')+': <b>'+esc(x.c.name)+' - '+esc(x.c.subject)+'</b>بعد<div class="big" style="font-size:'+(cur?'24':'34')+'px">'+(x.diff<1440?hms(x.diff*60):fmtDiff(x.diff))+'</div>'+dn(x.c.day)+' '+hmf(st(x.c))+'</div>'}
+  else if(!cur)h='<div class="sec">دوس على أي خانة فاضية عشان تضيف حصة</div>';
+  $('#lvN').innerHTML=h;$('#next').style.borderColor=col;
 }
 function render(){
   const i=S.info,today=new Date().getDay(),n=new Date(),nm=n.getHours()*60+n.getMinutes();
@@ -266,7 +295,7 @@ $('#saveBtn').onclick=()=>{
 
 $('#setBtn').onclick=()=>{const i=S.info;
   $('#iGov').value=i.gov;$('#iAdm').value=i.admin;$('#iSch').value=i.school;$('#iTea').value=i.teacher;
-  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#err2').textContent='';
+  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#fPin').checked=!!S.pin;$('#err2').textContent='';
   $('#pRows').innerHTML=S.periods.map((p,k)=>`<div class="row" style="margin-bottom:6px"><span>حصة ${k+1}</span><input type="time" data-s="${k}" value="${p.start}"><input type="time" data-e="${k}" value="${p.end}"></div>`).join('');
   $('#dlg2').showModal()};
 $('#sCancel').onclick=()=>$('#dlg2').close();
@@ -274,7 +303,7 @@ $('#sSave').onclick=()=>{
   const np=S.periods.map((p,k)=>({start:$('[data-s="'+k+'"]').value,end:$('[data-e="'+k+'"]').value}));
   for(let k=0;k<np.length;k++)if(!np[k].start||!np[k].end||mins(np[k].end)<=mins(np[k].start)){$('#err2').textContent='راجع مواعيد الحصة '+(k+1)+': النهاية لازم تكون بعد البداية.';return}
   S.info=Object.assign({},S.info,{gov:$('#iGov').value.trim(),admin:$('#iAdm').value.trim(),school:$('#iSch').value.trim()||'جدول الحصص',teacher:$('#iTea').value.trim()});
-  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.periods=np;
+  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.pin=$('#fPin').checked;pinLast='';if(S.pin&&'Notification' in window&&Notification.permission!=='granted'){unlock();Notification.requestPermission().then(render)}if(!S.pin)pinOff();S.periods=np;
   save();$('#dlg2').close();render()};
 $('#testBtn').onclick=()=>{unlock();alertClass(S.classes[0]||{name:'7/2',subject:'E',p:1,n:1},S.lead)};
 
@@ -298,7 +327,26 @@ async function alertClass(c,mm){
       if(r)await r.showNotification(title,{body,icon:'icon-192.png',vibrate:[300,150,300],tag:'cls'+c.id,renotify:true,requireInteraction:true,lang:'ar',dir:'rtl'});
       else new Notification(title,{body})}catch(e){try{new Notification(title,{body})}catch(_){}}}
 }
+/* ---- إشعار ثابت بالحصة الحالية (بيتحدّث كل دقيقة والتطبيق شغّال) ---- */
+let pinLast='';
+async function pinOff(){try{const r=await navigator.serviceWorker.getRegistration();if(r)(await r.getNotifications({tag:'pin'})).forEach(x=>x.close())}catch(e){}}
+async function pinTick(){
+  if(!S.pin||!('Notification' in window)||Notification.permission!=='granted')return;
+  const n=new Date(),nowS=n.getHours()*3600+n.getMinutes()*60+n.getSeconds(),cls=byDay(n.getDay());
+  const cur=cls.find(c=>nowS>=mins(st(c))*60&&nowS<mins(en(c))*60);
+  const first=mins(S.periods[0].start)*60-1800,last=mins(S.periods[S.periods.length-1].end)*60;
+  let title='',body='';
+  if(cur){const left=Math.ceil((mins(en(cur))*60-nowS)/60);title='الحصة الحالية: '+cur.name+' - '+cur.subject;body='باقي '+mw(left)+' | تنتهي '+hmf(en(cur));
+    const nx=cls.find(c=>mins(st(c))>=mins(en(cur)));if(nx)body+=' | الجاية: '+nx.name+' '+hmf(st(nx))}
+  else if(nowS>=first&&nowS<=last){const nx=cls.find(c=>mins(st(c))*60>nowS);
+    if(nx){const left=Math.ceil((mins(st(nx))*60-nowS)/60);title='الحصة الجاية: '+nx.name+' - '+nx.subject;body='بعد '+mw(left)+' | الساعة '+hmf(st(nx))}else title='خلّصت حصصك النهاردة'}
+  const key=title+'|'+body;if(key===pinLast)return;pinLast=key;
+  try{const r=await navigator.serviceWorker.getRegistration();if(!r)return;
+    if(!title){(await r.getNotifications({tag:'pin'})).forEach(x=>x.close());return}
+    await r.showNotification(title,{body,icon:'icon-192.png',tag:'pin',silent:true,renotify:false,requireInteraction:true,lang:'ar',dir:'rtl'})}catch(e){}
+}
 function tick(){
+  pinTick();
   const n=new Date(),nm=n.getHours()*60+n.getMinutes()+n.getSeconds()/60,ds=n.getFullYear()+'-'+n.getMonth()+'-'+n.getDate();
   byDay(n.getDay()).forEach(c=>{const diff=mins(st(c))-nm,k=ds+c.id;
     if(diff>0&&diff<=S.lead&&!S.notified[k]){S.notified[k]=1;alertClass(c,Math.min(S.lead,Math.ceil(diff)))}});
