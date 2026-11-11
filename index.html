@@ -55,6 +55,8 @@ header .rib{display:inline-block;background:#E53935;color:#fff;font-weight:800;f
 .rhist{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
 .hi{display:flex;justify-content:space-between;align-items:center;padding:6px 4px;font-size:13px;cursor:pointer}
 .hx{border:0;background:none;color:var(--red);font-size:16px}
+.wst{border:2px solid var(--line);border-radius:14px;padding:10px;margin:10px 0}.wh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.wb{font-size:13px;font-weight:800;border-radius:10px;padding:2px 8px}.wb.ok{background:#DFF6E3;color:#067647}.wb.no{background:#FDE4E1;color:var(--red)}.wst .btn{width:100%}
 .csum{margin:8px 12px 2px;background:#F4F8FF;border:2px solid #DCE6F7;border-radius:16px;padding:4px 8px}
 .sm{display:flex;align-items:center;gap:10px;padding:6px 8px;border-right:5px solid;border-radius:8px;margin:5px 0;background:#fff}
 .nw{white-space:nowrap}.smi{font-size:20px}.sm b{display:block;font-size:12px;color:var(--mute);font-weight:700}.sm .v{font-size:14px;font-weight:700;color:var(--navy);line-height:1.5}
@@ -130,6 +132,18 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
   <div class="dk"><button class="cir" id="icsBtn" style="background:#2563EB" aria-label="تصدير للتقويم">📅</button><span>التقويم</span></div>
   <div class="dk"><button class="cir" id="setBtn" style="background:#F59E0B" aria-label="الإعدادات">⚙️</button><span>الإعدادات</span></div>
 </div>
+<dialog id="dlgW">
+  <h3>خطوات التفعيل 🔔</h3>
+  <p class="note">عشان التنبيهات توصلك في ميعادها، اعمل الخطوات دي مرة واحدة:</p>
+  <div class="wst"><div class="wh"><b>1) الإشعارات</b><span id="w1" class="wb"></span></div><button class="btn" id="wB1">تفعيل الإشعارات</button></div>
+  <div class="wst"><div class="wh"><b>2) الصوت</b><span id="w2" class="wb"></span></div><button class="btn alt" id="wB2">جرّب الصوت</button></div>
+  <div class="wst"><div class="wh"><b>3) التشغيل في الخلفية</b></div>
+    <p class="note" style="margin:0 0 8px">من إعدادات الموبايل ← البطارية ← اختار التطبيق (أو كروم) ← <b>بدون قيود</b> أو «السماح بالنشاط في الخلفية»، وفعّل «التشغيل التلقائي» لو موجود. وقفل التطبيق في شاشة التطبيقات الأخيرة بأيقونة القفل 🔒.</p>
+    <button class="btn ghost" id="wB3">افتح إعدادات البطارية</button><div class="note" id="wN3"></div></div>
+  <div class="wst"><div class="wh"><b>4) تثبيت التطبيق</b><span id="w4" class="wb"></span></div><button class="btn ghost" id="wB4">تثبيت على الشاشة الرئيسية</button></div>
+  <div class="acts"><button class="btn" id="wDone">تمام، خلّصت</button><button class="btn ghost" id="wSkip">فكّرني بعدين</button></div>
+</dialog>
+
 <dialog id="dlgC">
   <div class="cH"><span>📚 فصولي</span><button id="cClose">✕</button></div>
   <div class="chips" id="cChips"></div>
@@ -196,6 +210,7 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
   <label class="chk"><input type="checkbox" id="fVc"> إعلان صوتي بالكلام</label>
   <label class="chk"><input type="checkbox" id="fPin"> ثبّت إشعار الحصة الحالية طول اليوم الدراسي</label>
   <button class="btn alt" id="testBtn" type="button">جرّب التنبيه الآن</button>
+  <button class="btn ghost" id="sGuide" type="button" style="margin-top:6px;width:100%">خطوات التفعيل (إشعارات وخلفية)</button>
   <p class="note">التنبيهات (الصوت والإشعار والرسالة) بتشتغل والتطبيق مفتوح. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
   <h4>تصدير التقويم</h4>
   <label>التكرار الأسبوعي يبدأ من</label><input type="date" id="fFrom">
@@ -468,6 +483,26 @@ $('#cBody').onchange=e=>{
 function showHist(row,t){const h=row.querySelector('.rhist');
   h.innerHTML=ents(CC,t).map(x=>'<div class="hi" data-id="'+x.id+'"><span>'+fmtD(x.date)+' — '+esc(x.pages?pgT(x.pages):'-')+'</span><button class="hx">✕</button></div>').join('')||'<div class="note">مفيش سجلات لسه.</div>';
   h.hidden=false}
+
+/* ---- خطوات التفعيل: إشعارات + صوت + بطارية + تثبيت ---- */
+let DIP=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();DIP=e});
+const isApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+function wSet(id,ok,yes,no){const e=$(id);e.textContent=ok?yes:no;e.className='wb '+(ok?'ok':'no')}
+function wRender(){
+  const na=!('Notification' in window),np=na?'na':Notification.permission;
+  wSet('#w1',np==='granted','✓ مفعّلة',na?'مش متاحة':'✗ مقفولة');
+  wSet('#w2',!!AC&&AC.state==='running','✓ شغّال','لسه ما جرّبتش');
+  wSet('#w4',!!isApp(),'✓ متثبّت','لسه');
+}
+function wOpen(){wRender();$('#dlgW').showModal()}
+$('#wB1').onclick=async()=>{unlock();try{await Notification.requestPermission()}catch(e){}wRender();render()};
+$('#wB2').onclick=()=>{unlock();setTimeout(()=>{beep();wRender()},200)};
+$('#wB3').onclick=()=>{$('#wN3').textContent='لو الإعدادات ما اتفتحتش لوحدها، افتحها بإيدك زي الشرح اللي فوق.';try{location.href='intent:#Intent;action=android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS;end'}catch(e){}};
+$('#wB4').onclick=()=>{if(DIP){DIP.prompt();DIP=null}else if(isApp())alert('التطبيق متثبّت بالفعل ✓');else alert('من قائمة المتصفح (⋮) اختار «إضافة إلى الشاشة الرئيسية».')};
+$('#wDone').onclick=()=>{S.setup=true;save();$('#dlgW').close()};
+$('#wSkip').onclick=()=>$('#dlgW').close();
+$('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
+if(!S.setup)setTimeout(wOpen,1200);
 
 /* ---- استيراد من صورة: اكتشاف خطوط الجدول + قراءة الأرقام ---- */
 function gridAnalyze(g,w,h,rtl){
