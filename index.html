@@ -69,6 +69,7 @@ header .rib{display:inline-block;background:#E53935;color:#fff;font-weight:800;f
 table{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
 th,td{text-align:center;padding:0;border:0;border-radius:10px}
 th{color:#fff;font-size:12px;padding:10px 0;font-weight:800;text-shadow:0 1px 0 rgba(0,0,0,.2)}
+th small{display:block;font-size:10.5px;font-weight:600;opacity:.95;margin-bottom:1px}
 th.today{box-shadow:0 0 0 3px #fff,0 0 0 5px var(--navy)}
 th.pc{width:50px;background:var(--blue)}
 td{height:54px;font-size:17px;font-weight:800;color:var(--navy);position:relative;background:rgba(255,255,255,.7)}
@@ -287,7 +288,9 @@ function render(){
   const L=(k,t,ph,tag,pre,cls)=>{const v=i[k]===undefined?DEF[k]:i[k];return '<'+tag+(cls?' class="'+cls+'"':'')+' data-h="'+k+'" data-t="'+t+'">'+(v?(pre||'')+esc(v):'<em>'+ph+'</em>')+'</'+tag+'>'};
   $('#hdr').innerHTML=L('slogan','الشعار','اضغط لإضافة شعار','small','🎓 ')+L('gov','المحافظة','اضغط لإضافة المحافظة','small')+L('admin','الإدارة','اضغط لإضافة الإدارة','small')+L('school','المدرسة','اضغط لإضافة اسم المدرسة','h1')+L('teacher','اسم المعلم','اضغط لإضافة اسم المعلم','div','أ/ ',  't')+L('title','عنوان الجدول','اضغط لإضافة عنوان','div','','rib');
   live();
-  let h='<table><tr><th class="pc">'+esc(S.info.corner||'الحصة')+'</th>'+DAYS.map(d=>'<th data-d="'+d+'" class="'+(d===today?'today':'')+'" style="background:'+DAYC[d]+'">'+esc(dn(d))+'</th>').join('')+'</tr>';
+  const sat=new Date();sat.setHours(0,0,0,0);sat.setDate(sat.getDate()-((sat.getDay()+1)%7));
+  const wd=i=>{const x=new Date(sat);x.setDate(x.getDate()+i);return x.getDate()+'/'+(x.getMonth()+1)};
+  let h='<table><tr><th class="pc">'+esc(S.info.corner||'الحصة')+'</th>'+DAYS.map((d,i)=>'<th data-d="'+d+'" class="'+(d===today?'today':'')+'" style="background:'+DAYC[d]+'"><small>'+wd(i)+'</small>'+esc(dn(d))+'</th>').join('')+'</tr>';
   for(let p=1;p<=S.periods.length;p++){
     h+='<tr><td class="pc" data-pi="'+(p-1)+'" style="background:'+PCOL[(p-1)%9][0]+';color:'+PCOL[(p-1)%9][1]+'">'+p+'<small>'+hm(S.periods[p-1].start)+'</small></td>';
     for(const d of DAYS){
