@@ -38,7 +38,9 @@ header .rib{display:inline-block;background:#E53935;color:#fff;font-weight:800;f
 @media(prefers-reduced-motion:reduce){.leg,.arm,.bob{animation:none}}
 .dock{position:fixed;bottom:0;inset-inline:0;background:rgba(255,255,255,.97);border-top:4px solid #FFC62E;border-radius:18px 18px 0 0;padding:8px 10px 10px;display:flex;justify-content:space-around;align-items:flex-start}
 .dk{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:700;color:var(--ink)}
-.cir{width:54px;height:54px;border-radius:50%;border:0;font-size:25px;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center}
+.cir{position:relative;width:54px;height:54px;border-radius:50%;border:0;font-size:25px;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center}
+.dot{position:absolute;top:-2px;right:-2px;width:14px;height:14px;background:#E53935;border-radius:50%;border:2px solid #fff}
+.dk{text-align:center}
 #dlgC{padding:0;border-radius:20px;width:min(94vw,440px)}
 .cH{position:sticky;top:0;z-index:3;background:var(--blue);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:18px;font-weight:800}
 .cH button{border:0;background:rgba(255,255,255,.22);color:#fff;border-radius:50%;width:34px;height:34px;font-size:16px}
@@ -131,6 +133,7 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
   <div class="dk"><button class="cir" id="clsBtn" style="background:#8B5CF6" aria-label="فصولي">📚</button><span>فصولي</span></div>
   <div class="dk"><button class="cir" id="impBtn" style="background:#2FBF71" aria-label="استيراد">📷</button><span>استيراد</span></div>
   <div class="dk"><button class="cir" id="icsBtn" style="background:#2563EB" aria-label="تصدير للتقويم">📅</button><span>التقويم</span></div>
+  <div class="dk"><button class="cir" id="bkBtn" style="background:#0EA5A5" aria-label="نسخة احتياطية">💾<i class="dot" hidden></i></button><span>نسخة احتياطية</span></div>
   <div class="dk"><button class="cir" id="setBtn" style="background:#F59E0B" aria-label="الإعدادات">⚙️</button><span>الإعدادات</span></div>
 </div>
 <dialog id="dlgW">
@@ -143,6 +146,17 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
     <button class="btn ghost" id="wB3">افتح إعدادات البطارية</button><div class="note" id="wN3"></div></div>
   <div class="wst"><div class="wh"><b>4) تثبيت التطبيق</b><span id="w4" class="wb"></span></div><button class="btn ghost" id="wB4">تثبيت على الشاشة الرئيسية</button></div>
   <div class="acts"><button class="btn" id="wDone">تمام، خلّصت</button><button class="btn ghost" id="wSkip">فكّرني بعدين</button></div>
+</dialog>
+
+<dialog id="dlgB">
+  <h3>💾 النسخة الاحتياطية</h3>
+  <div class="note" id="bSum" style="font-size:14px;color:var(--ink)"></div>
+  <div class="note" id="bLast"></div>
+  <button class="btn" id="bSave" style="width:100%;margin-top:10px">💾 حفظ نسخة احتياطية الآن</button>
+  <p class="note">بيطلّع ملف فيه الجدول والحصص والواجب والتقييم. ابعته لنفسك على واتساب أو احفظه في درايف.</p>
+  <label>استرجاع من نسخة محفوظة</label><input type="file" id="bFile" accept=".json,application/json,.txt">
+  <div class="err" id="bMsg"></div>
+  <div class="acts"><button class="btn ghost" id="bClose">إغلاق</button></div>
 </dialog>
 
 <dialog id="dlgC">
@@ -224,7 +238,7 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
 
 <script>
 const $=s=>document.querySelector(s);
-const DN={6:'السبت',0:'الأحد',1:'الاثنين',2:'الثلاثاء',3:'الأربعاء',4:'الخميس'};
+const DN={6:'السبت',0:'الأحد',1:'الاثنين',2:'الثلاثاء',3:'الأربعاء',4:'الخميس',5:'الجمعة'};
 const dn=d=>(S.dn&&S.dn[d])||DN[d];
 const DAYS=[6,0,1,2,3,4], ICS={0:'SU',1:'MO',2:'TU',3:'WE',4:'TH',5:'FR',6:'SA'};
 const pad2=n=>String(n).padStart(2,'0');
@@ -303,6 +317,7 @@ function render(){
   }
   $('#grid').innerHTML=h+'</table>';
   $('#welcome').hidden=S.classes.length>0;
+  if(typeof bkDot==='function')bkDot();
   $('#permBar').hidden=!('Notification' in window)||Notification.permission==='granted';
 }
 $('#grid').onclick=e=>{const c=e.target.closest('th,td');if(!c)return;
@@ -506,6 +521,39 @@ $('#wDone').onclick=()=>{S.setup=true;save();$('#dlgW').close()};
 $('#wSkip').onclick=()=>$('#dlgW').close();
 $('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
 if(!S.setup)setTimeout(wOpen,1200);
+
+/* ---- النسخة الاحتياطية: الجدول + الحصص + الواجب + التقييم ---- */
+const bkCounts=st=>{let L=0,H=0,E=0;Object.values(st.log||{}).forEach(l=>{L+=(l.lesson||[]).length;H+=(l.hw||[]).length;E+=(l.ev||[]).filter(x=>x.date||x.pages).length});return{c:(st.classes||[]).length,L,H,E}};
+const bkTxt=n=>n.c+' حصة في الجدول · '+n.L+' حصة مسجّلة · '+n.H+' واجب · '+n.E+' تقييم';
+function bkDot(){const n=bkCounts(S),has=n.c||n.L||n.H||n.E;let old=true;
+  if(S.lastBackup)old=(new Date(todayISO()+'T00:00:00')-new Date(S.lastBackup+'T00:00:00'))/864e5>14;
+  const d=document.querySelector('#bkBtn .dot');if(d)d.hidden=!(has&&old)}
+function bkOpen(){$('#bSum').textContent='هيتحفظ: '+bkTxt(bkCounts(S));
+  $('#bLast').textContent=S.lastBackup?'آخر نسخة: '+fmtD(S.lastBackup):'لسه ما أخدتش نسخة احتياطية.';
+  $('#bMsg').textContent='';$('#bFile').value='';$('#dlgB').showModal()}
+function bkData(){const o=JSON.parse(JSON.stringify(S));delete o.notified;delete o.setup;delete o.lastBackup;return{app:'golden-schedule',v:1,date:todayISO(),data:o}}
+$('#bkBtn').onclick=bkOpen;$('#bClose').onclick=()=>$('#dlgB').close();
+$('#bSave').onclick=async()=>{
+  const m=$('#bMsg'),file=new File([JSON.stringify(bkData())],'golden-schedule-backup-'+todayISO()+'.json',{type:'application/json'});
+  let shared=false;
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'نسخة احتياطية - جدول الحصص الذهبي'});shared=true}}catch(e){if(e.name==='AbortError')return}
+  if(!shared){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
+  S.lastBackup=todayISO();save();bkDot();$('#bLast').textContent='آخر نسخة: '+fmtD(S.lastBackup);m.style.color='#067647';m.textContent='تمام، النسخة اتحفظت.'};
+$('#bFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;const m=$('#bMsg');m.style.color='';
+  try{
+    const o=JSON.parse(await f.text()),d=o&&o.data?o.data:o;
+    if(!d||!Array.isArray(d.classes))throw 0;
+    const cl=d.classes.filter(c=>c&&DAYS.includes(c.day)&&c.p>=1&&c.n>=1&&c.name);
+    if(!confirm('هيتم استبدال بياناتك الحالية بالنسخة دي ('+bkTxt(Object.assign({},d,{classes:cl}))+'). موافق؟')){e.target.value='';return}
+    Object.keys(d).forEach(k=>{if(!['notified','setup','lastBackup'].includes(k))S[k]=d[k]});
+    S.classes=cl.map((c,i)=>Object.assign({id:'r'+Date.now()+i},c));
+    if(!d.log)S.log={};
+    if(!Array.isArray(S.periods)||!S.periods.length)S.periods=Array.from({length:9},(_,i)=>{const a=480+i*45,f=x=>pad2(Math.floor(x/60))+':'+pad2(x%60);return{start:f(a),end:f(a+40)}});
+    S.notified={};save();render();bkDot();$('#dlgB').close();
+  }catch(err){m.textContent='الملف مش نسخة صالحة. اختار ملف النسخة الاحتياطية.'}
+  e.target.value='';
+};
 
 /* ---- استيراد من صورة: اكتشاف خطوط الجدول + قراءة الأرقام ---- */
 function gridAnalyze(g,w,h,rtl){
