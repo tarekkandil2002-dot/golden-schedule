@@ -150,11 +150,9 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
 
 <dialog id="dlgB">
   <h3>💾 النسخة الاحتياطية</h3>
-  <div class="note" id="bSum" style="font-size:14px;color:var(--ink)"></div>
   <div class="note" id="bLast"></div>
-  <button class="btn" id="bSave" style="width:100%;margin-top:10px">💾 حفظ نسخة احتياطية الآن</button>
-  <p class="note">بيطلّع ملف فيه الجدول والحصص والواجب والتقييم. ابعته لنفسك على واتساب أو احفظه في درايف.</p>
-  <label>استرجاع من نسخة محفوظة</label><input type="file" id="bFile" accept=".json,application/json,.txt">
+  <button class="btn" id="bSave" style="width:100%;margin-top:10px">💾 أخذ نسخة احتياطية</button>
+  <label>استرجاع نسخة</label><input type="file" id="bFile" accept=".json,application/json,.txt">
   <div class="err" id="bMsg"></div>
   <div class="acts"><button class="btn ghost" id="bClose">إغلاق</button></div>
 </dialog>
@@ -528,8 +526,8 @@ const bkTxt=n=>n.c+' حصة في الجدول · '+n.L+' حصة مسجّلة · 
 function bkDot(){const n=bkCounts(S),has=n.c||n.L||n.H||n.E;let old=true;
   if(S.lastBackup)old=(new Date(todayISO()+'T00:00:00')-new Date(S.lastBackup+'T00:00:00'))/864e5>14;
   const d=document.querySelector('#bkBtn .dot');if(d)d.hidden=!(has&&old)}
-function bkOpen(){$('#bSum').textContent='هيتحفظ: '+bkTxt(bkCounts(S));
-  $('#bLast').textContent=S.lastBackup?'آخر نسخة: '+fmtD(S.lastBackup):'لسه ما أخدتش نسخة احتياطية.';
+function bkOpen(){
+  $('#bLast').textContent=S.lastBackup?'آخر نسخة: '+fmtD(S.lastBackup):'';
   $('#bMsg').textContent='';$('#bFile').value='';$('#dlgB').showModal()}
 function bkData(){const o=JSON.parse(JSON.stringify(S));delete o.notified;delete o.setup;delete o.lastBackup;return{app:'golden-schedule',v:1,date:todayISO(),data:o}}
 $('#bkBtn').onclick=bkOpen;$('#bClose').onclick=()=>$('#dlgB').close();
@@ -538,14 +536,14 @@ $('#bSave').onclick=async()=>{
   let shared=false;
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'نسخة احتياطية - جدول الحصص الذهبي'});shared=true}}catch(e){if(e.name==='AbortError')return}
   if(!shared){const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
-  S.lastBackup=todayISO();save();bkDot();$('#bLast').textContent='آخر نسخة: '+fmtD(S.lastBackup);m.style.color='#067647';m.textContent='تمام، النسخة اتحفظت.'};
+  S.lastBackup=todayISO();save();bkDot();$('#bLast').textContent='آخر نسخة: '+fmtD(S.lastBackup);m.style.color='#067647';m.textContent='تمام ✓'};
 $('#bFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;const m=$('#bMsg');m.style.color='';
   try{
     const o=JSON.parse(await f.text()),d=o&&o.data?o.data:o;
     if(!d||!Array.isArray(d.classes))throw 0;
     const cl=d.classes.filter(c=>c&&DAYS.includes(c.day)&&c.p>=1&&c.n>=1&&c.name);
-    if(!confirm('هيتم استبدال بياناتك الحالية بالنسخة دي ('+bkTxt(Object.assign({},d,{classes:cl}))+'). موافق؟')){e.target.value='';return}
+    if(!confirm('هيتم استبدال بياناتك الحالية بالنسخة دي. موافق؟')){e.target.value='';return}
     Object.keys(d).forEach(k=>{if(!['notified','setup','lastBackup'].includes(k))S[k]=d[k]});
     S.classes=cl.map((c,i)=>Object.assign({id:'r'+Date.now()+i},c));
     if(!d.log)S.log={};
