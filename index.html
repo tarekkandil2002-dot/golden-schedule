@@ -239,6 +239,10 @@ header [data-h],th,td.pc{cursor:pointer}header em{font-style:normal;opacity:.6;f
   <button class="btn alt" id="testBtn" type="button">جرّب التنبيه الآن</button>
   <button class="btn ghost" id="sGuide" type="button" style="margin-top:6px;width:100%">خطوات التفعيل (إشعارات وخلفية)</button>
   <p class="note">التنبيهات (الصوت والإشعار والرسالة) بتشتغل والتطبيق مفتوح. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
+  <h4>🏫 ربط جدول المدرسة</h4>
+  <label>كود أو رابط جدولك من إدارة المدرسة</label><input id="fSync" placeholder="مثال: t-8f3k29xq" style="direction:ltr;text-align:left">
+  <div class="note" id="syncMsg"></div>
+  <button class="btn alt" id="syncNow" type="button" style="width:100%;margin-top:6px">🔄 تحديث الآن</button>
   <h4>تصدير التقويم</h4>
   <label>التكرار الأسبوعي يبدأ من</label><input type="date" id="fFrom">
   <label>ويتكرر لحد</label><input type="date" id="fUntil">
@@ -402,7 +406,7 @@ $('#saveBtn').onclick=()=>{
 
 $('#setBtn').onclick=()=>{const i=S.info;
   $('#iGov').value=i.gov;$('#iAdm').value=i.admin;$('#iSch').value=i.school;$('#iTea').value=i.teacher;
-  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fEv').value=S.evMax||20;$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#fPin').checked=!!S.pin;$('#err2').textContent='';
+  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fSync').value=S.syncUrl||'';syncShow();$('#fEv').value=S.evMax||20;$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#fPin').checked=!!S.pin;$('#err2').textContent='';
   const rows=(a,sk,ek)=>a.map((p,k)=>`<div class="row" style="margin-bottom:6px"><span>حصة ${k+1}</span><input type="time" data-${sk}="${k}" value="${p.start}"><input type="time" data-${ek}="${k}" value="${p.end}"></div>`).join('');
   $('#pRows').innerHTML='<b style="color:var(--blue)">☀️ الفترة الصباحية</b>'+rows(S.periods,'s','e')+'<b style="color:#B45309;display:block;margin:10px 0 4px">🌤️ الفترة الممتدة</b>'+rows(S.periodsX,'xs','xe')+'<b style="color:#6D28D9;display:block;margin:10px 0 4px">🌙 الفترة المسائية</b>'+rows(S.periodsE,'es','ee')
     +'<b style="color:#B45309;display:block;margin:14px 0 4px">☕ الفسحة</b>'+['m','x','e'].map(k=>'<div class="row" style="margin-bottom:6px"><span>'+SI[k]+' '+SHN[k]+'</span><input type="time" data-bs="'+k+'" value="'+((S.brk[k]||{}).s||'')+'"><input type="time" data-be="'+k+'" value="'+((S.brk[k]||{}).e||'')+'"></div>').join('');
@@ -413,7 +417,7 @@ $('#sSave').onclick=()=>{
   const np=rd(S.periods,'s','e'),ne=rd(S.periodsE,'es','ee'),nx=rd(S.periodsX,'xs','xe');
   for(const [arr,nm] of [[np,'الصباحي'],[nx,'الممتد'],[ne,'المسائي']])for(let k=0;k<arr.length;k++)if(!arr[k].start||!arr[k].end||mins(arr[k].end)<=mins(arr[k].start)){$('#err2').textContent='راجع مواعيد الحصة '+(k+1)+' ('+nm+'): النهاية لازم تكون بعد البداية.';return}
   S.info=Object.assign({},S.info,{gov:$('#iGov').value.trim(),admin:$('#iAdm').value.trim(),school:$('#iSch').value.trim()||'جدول الحصص',teacher:$('#iTea').value.trim()});
-  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.evMax=Math.min(60,Math.max(1,+$('#fEv').value||20));S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.pin=$('#fPin').checked;pinLast='';if(S.pin&&'Notification' in window&&Notification.permission!=='granted'){unlock();Notification.requestPermission().then(render)}if(!S.pin)pinOff();const nb={};for(const k of ['m','x','e']){const a=$('[data-bs="'+k+'"]').value,z=$('[data-be="'+k+'"]').value;
+  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.syncUrl=$('#fSync').value.trim();S.evMax=Math.min(60,Math.max(1,+$('#fEv').value||20));S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.pin=$('#fPin').checked;pinLast='';if(S.pin&&'Notification' in window&&Notification.permission!=='granted'){unlock();Notification.requestPermission().then(render)}if(!S.pin)pinOff();const nb={};for(const k of ['m','x','e']){const a=$('[data-bs="'+k+'"]').value,z=$('[data-be="'+k+'"]').value;
     if((a&&!z)||(!a&&z)||(a&&mins(z)<=mins(a))){$('#err2').textContent='راجع الفسحة ('+SHN[k]+'): اكتب بداية ونهاية صح أو سيبهم فاضيين.';return}nb[k]={s:a,e:z}}
   S.brk=nb;S.periods=np;S.periodsE=ne;S.periodsX=nx;
   save();$('#dlg2').close();render()};
@@ -600,6 +604,65 @@ $('#bFile').onchange=async e=>{
   e.target.value='';
 };
 
+/* ---- ربط جدول المدرسة: تحديث تلقائي من ملف الإدارة لما التطبيق يتفتح ---- */
+function syncCands(v){v=v.trim();const p=v.split('#'),f=p[0],c=(p[1]||'').trim();
+  if(/^https?:\/\//i.test(f)||/\.json(\?|$)/i.test(f))return[{u:new URL(f,location.href).href,c}];
+  return[{u:new URL('data/'+encodeURIComponent(f)+'.json',location.href).href,c:''},{u:new URL('school.json',location.href).href,c:f}]}
+async function syncFetch(){
+  for(const k of syncCands(S.syncUrl)){
+    try{const r=await fetch(k.u+(k.u.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});if(!r.ok)continue;
+      const o=JSON.parse(await r.text());
+      if(Array.isArray(o.teachers)){const t=o.teachers.find(x=>x&&x.code===k.c);if(!t)continue;
+        return{o:{version:o.version,school:o.school,periods:o.periods,brk:o.brk,teacher:{name:t.name},classes:t.classes||[]}}}
+      if(Array.isArray(o.classes))return{o}
+    }catch(e){}}
+  return null}
+const hashStr=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return String(h)};
+const nowTxt=()=>{const n=new Date();return todayISO()+' '+pad2(n.getHours())+':'+pad2(n.getMinutes())};
+function syncShow(msg){const e=$('#syncMsg');if(!e)return;e.textContent=msg||(S.syncUrl?(S.syncAt?'آخر تحديث: '+S.syncAt+(S.syncVer?' (النسخة '+S.syncVer+')':''):'لسه ما اتحدّثش.'):'اكتب الكود اللي بعتهولك مسؤول الجدول، وبعدين دوس «تحديث الآن».')}
+function shOf(x){x=String(x||'m').trim();return(x==='e'||x==='مسائي')?'e':(x==='x'||x==='ممتد')?'x':'m'}
+function syncApply(o){
+  if(!o||!Array.isArray(o.classes))throw new Error('format');
+  const pa=a=>Array.isArray(a)?a.map(p=>Array.isArray(p)?{start:tNorm(p[0]),end:tNorm(p[1])}:{start:tNorm(p&&p.start),end:tNorm(p&&p.end)}):null;
+  const okP=a=>a&&a.length&&a.every(p=>p.start&&p.end&&mins(p.end)>mins(p.start));
+  if(o.periods&&typeof o.periods==='object'){
+    const m=pa(o.periods.m),x=pa(o.periods.x),e=pa(o.periods.e);
+    if(okP(m))S.periods=m;if(okP(x))S.periodsX=x;if(okP(e))S.periodsE=e}
+  if(o.brk&&typeof o.brk==='object'){['m','x','e'].forEach(k=>{const b=o.brk[k];if(b&&b.s!==undefined)S.brk[k]={s:b.s?tNorm(b.s)||'':'',e:b.e?tNorm(b.e)||'':''}})}
+  ensureE();
+  const out=[];
+  o.classes.forEach((it,i)=>{
+    const a=Array.isArray(it)?{day:it[0],p:it[1],n:it[2],name:it[3],subject:it[4],sh:it[5]}:it,sh=shOf(a.sh);
+    const dk=String(a.day).trim(),d=DNM[dk]!==undefined?DNM[dk]:+a.day,p=+a.p,n=+a.n||1,name=String(a.name||'').trim();
+    if(!DAYS.includes(d)||!(p>=1)||!name||p+n-1>shArr(sh).length||out.some(c=>c.day===d&&c.sh===sh&&c.p<p+n&&p<c.p+c.n))return;
+    out.push({id:'s'+d+sh+p+'_'+i,day:d,p,n,name,subject:String(a.subject||'E').trim(),sh,src:'s'})});
+  const keyOf=c=>[c.day,c.sh||'m',c.p,c.n,c.name].join('|');
+  const oldK=new Set(S.classes.filter(c=>c.src==='s').map(keyOf)),newK=new Set(out.map(keyOf));
+  S.classes=S.classes.filter(c=>c.src!=='s').concat(out);
+  if(o.school&&typeof o.school==='object'){['gov','admin','school'].forEach(k=>{if(typeof o.school[k]==='string'&&o.school[k].trim())S.info[k]=o.school[k].trim()})}
+  if(o.teacher&&typeof o.teacher.name==='string'&&o.teacher.name.trim())S.info.teacher=o.teacher.name.trim();
+  const cur=S.classes.filter(c=>c.src==='s');if(!cur.some(c=>(c.sh||'m')===S.view)&&cur.length)S.view=cur[0].sh||'m';
+  return{added:[...newK].filter(k=>!oldK.has(k)).length,removed:[...oldK].filter(k=>!newK.has(k)).length,total:out.length,first:!oldK.size&&!S.syncHash}}
+async function syncRun(manual){
+  if(!S.syncUrl){if(manual)syncShow('اكتب الكود الأول.');return}
+  try{
+    const got=await syncFetch();if(!got)throw new Error('nf');
+    const o=got.o,h=hashStr(JSON.stringify(o));
+    S.syncAt=nowTxt();
+    if(h===S.syncHash){save();syncShow(manual?'جدولك محدّث ✓ ما فيش جديد.':undefined);return}
+    const res=syncApply(o);S.syncHash=h;S.syncVer=+o.version||S.syncVer||0;save();render();syncShow();
+    if(res.first||res.added||res.removed)toast('<b>'+(res.first?'✅ اتربط جدولك بإدارة المدرسة':'🔔 جدولك اتحدّث من إدارة المدرسة')+'</b><br>'+res.total+' حصة'+(res.first?'':' · اتضاف '+res.added+' · اتشال '+res.removed))
+  }catch(e){if(manual)syncShow('مقدرتش أوصل لجدولك. اتأكد من الكود ومن النت.')}
+}
+$('#syncNow').onclick=()=>{S.syncUrl=$('#fSync').value.trim();save();syncRun(true)};
+let syncTry=0;
+function syncMaybe(){if(S.syncUrl&&Date.now()-syncTry>1800e3){syncTry=Date.now();syncRun(false)}}
+function syncInit(){
+  try{const qs=new URLSearchParams(location.search),a=(qs.get('s')||'').trim(),c=(qs.get('c')||'').trim();
+    if(a||c){S.syncUrl=a&&c?a+'#'+c:(a||c);S.syncHash='';save();history.replaceState(null,'',location.pathname)}}catch(e){}
+  setTimeout(syncMaybe,1200);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncMaybe()})}
+
 /* ---- استيراد من صورة: اكتشاف خطوط الجدول + قراءة الأرقام ---- */
 function gridAnalyze(g,w,h,rtl){
   const W=w+1,I=new Float64Array(W*(h+1));
@@ -742,6 +805,7 @@ $('#icsBtn').onclick=async()=>{
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 render();tick();
+syncInit();
 </script>
 </body>
 </html>
