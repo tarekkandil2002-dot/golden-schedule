@@ -389,14 +389,35 @@ input[type=checkbox]{width:auto;accent-color:var(--teal)}
 .err{color:var(--red);font-size:13px;font-weight:700;margin-top:8px;min-height:16px}
 .note{font-size:12.5px;color:var(--mute);line-height:1.65;margin-top:6px}
 
-/* Classes Dialog (#dlgC) */
-#dlgC{padding:0;border-radius:24px;width:min(94vw,450px)}
+/* Full-Screen Glass Sheets (#dlgC فصولي & #dlg2 الإعدادات) */
+dialog.full-dlg{
+  padding:0;
+  width:100vw;max-width:100vw;
+  height:100dvh;max-height:100dvh;
+  margin:0;border-radius:0;border:0;
+  overflow-x:hidden;
+}
+.dlg-body{padding:14px 14px 28px;max-width:860px;margin:0 auto}
+.dlg-grid2{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:640px){
+  dialog.full-dlg{
+    width:min(96vw,920px);max-width:920px;
+    height:min(94vh,880px);max-height:94vh;
+    margin:auto;border-radius:26px;
+    border:1px solid var(--glass-border);
+  }
+  .dlg-body{padding:18px 22px 32px}
+  .dlg-grid2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .csum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .csum .sm{margin:0}
+  .evl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .evr{margin-top:0}
+}
 .cH{
-  position:sticky;top:0;z-index:3;
+  position:sticky;top:0;z-index:5;
   background:var(--hdr-bg);color:#fff;
   display:flex;justify-content:space-between;align-items:center;
   padding:14px 16px;font-size:18px;font-weight:800;
-  backdrop-filter:blur(16px);
 }
 .cH button{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.18);color:#fff;border-radius:12px;width:34px;height:34px;font-size:16px;cursor:pointer}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:12px;background:var(--chip-bar);border-bottom:1px solid var(--line)}
@@ -537,12 +558,14 @@ input[type=checkbox]{width:auto;accent-color:var(--teal)}
   <div class="acts"><button class="btn ghost" id="bClose" type="button">إغلاق</button></div>
 </dialog>
 
-<dialog id="dlgC">
-  <div class="cH"><span>فصولي</span><button id="cClose" type="button">✕</button></div>
+<dialog id="dlgC" class="full-dlg">
+  <div class="cH"><span>📚 فصولي</span><button id="cClose" type="button" aria-label="إغلاق">✕</button></div>
   <div class="chips" id="cChips"></div>
-  <div id="cTitle"></div>
-  <div class="csum" id="cSum"></div>
-  <div id="cBody" style="padding-bottom:12px"></div>
+  <div class="dlg-body" style="padding-top:6px">
+    <div id="cTitle"></div>
+    <div class="csum" id="cSum"></div>
+    <div id="cBody" style="padding-bottom:16px"></div>
+  </div>
 </dialog>
 <div id="toast" hidden></div>
 
@@ -593,33 +616,43 @@ input[type=checkbox]{width:auto;accent-color:var(--teal)}
   <div class="acts"><button class="btn" id="eSave" type="button">حفظ</button><button class="btn ghost" id="eCancel" type="button">إلغاء</button></div>
 </dialog>
 
-<dialog id="dlg2">
-  <h3>الإعدادات</h3>
-  <h4>بيانات الجدول</h4>
-  <label>المحافظة</label><input id="iGov">
-  <label>الإدارة</label><input id="iAdm">
-  <label>المدرسة</label><input id="iSch">
-  <label>المعلم</label><input id="iTea">
-  <h4>التنبيه</h4>
-  <label>قبل الحصة بـ (دقائق)</label><input type="number" id="fLead" min="1" max="60">
-  <label>عدد التقييمات لكل فصل</label><input type="number" id="fEv" min="1" max="60">
-  <label class="chk"><input type="checkbox" id="fSnd"> صوت تنبيه</label>
-  <label class="chk"><input type="checkbox" id="fVc"> إعلان صوتي بالكلام</label>
-  <label class="chk"><input type="checkbox" id="fPin"> ثبّت إشعار الحصة الحالية طول اليوم الدراسي</label>
-  <button class="btn alt" id="testBtn" type="button" style="width:100%">جرّب التنبيه الآن</button>
-  <button class="btn ghost" id="sGuide" type="button" style="margin-top:8px;width:100%">خطوات التفعيل (إشعارات وخلفية)</button>
-  <p class="note">التنبيهات (الصوت والإشعار والرسالة) بتشتغل والتطبيق مفتوح. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
-  <h4>ربط جدول المدرسة</h4>
-  <label>كود أو رابط جدولك من إدارة المدرسة</label><input id="fSync" placeholder="مثال: t-8f3k29xq" style="direction:ltr;text-align:left">
-  <div class="note" id="syncMsg"></div>
-  <button class="btn alt" id="syncNow" type="button" style="width:100%;margin-top:8px">تحديث الآن</button>
-  <h4>تصدير التقويم</h4>
-  <label>التكرار الأسبوعي يبدأ من</label><input type="date" id="fFrom">
-  <label>ويتكرر لحد</label><input type="date" id="fUntil">
-  <h4>مواعيد الحصص</h4>
-  <div id="pRows"></div>
-  <div class="err" id="err2"></div>
-  <div class="acts"><button class="btn" id="sSave" type="button">حفظ</button><button class="btn ghost" id="sCancel" type="button">إلغاء</button></div>
+<dialog id="dlg2" class="full-dlg">
+  <div class="cH"><span>⚙️ الإعدادات</span><button id="sCloseTop" type="button" aria-label="إغلاق">✕</button></div>
+  <div class="dlg-body">
+    <h4 style="margin-top:4px">بيانات الجدول</h4>
+    <div class="dlg-grid2">
+      <div><label>المحافظة</label><input id="iGov"></div>
+      <div><label>الإدارة</label><input id="iAdm"></div>
+      <div><label>المدرسة</label><input id="iSch"></div>
+      <div><label>المعلم</label><input id="iTea"></div>
+    </div>
+    <h4>التنبيه والتقييمات</h4>
+    <div class="dlg-grid2">
+      <div><label>قبل الحصة بـ (دقائق)</label><input type="number" id="fLead" min="1" max="60"></div>
+      <div><label>عدد التقييمات لكل فصل</label><input type="number" id="fEv" min="1" max="60"></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="fSnd"> صوت تنبيه</label>
+    <label class="chk"><input type="checkbox" id="fVc"> إعلان صوتي بالكلام</label>
+    <label class="chk"><input type="checkbox" id="fPin"> ثبّت إشعار الحصة الحالية طول اليوم الدراسي</label>
+    <div class="dlg-grid2" style="margin-top:8px">
+      <button class="btn alt" id="testBtn" type="button" style="width:100%">جرّب التنبيه الآن</button>
+      <button class="btn ghost" id="sGuide" type="button" style="width:100%">خطوات التفعيل (إشعارات وخلفية)</button>
+    </div>
+    <p class="note">التنبيهات (الصوت والإشعار والرسالة) بتشتغل والتطبيق مفتوح. للتنبيه والتطبيق مقفول استخدم «تصدير للتقويم».</p>
+    <h4>ربط جدول المدرسة</h4>
+    <label>كود أو رابط جدولك من إدارة المدرسة</label><input id="fSync" placeholder="مثال: t-8f3k29xq" style="direction:ltr;text-align:left">
+    <div class="note" id="syncMsg"></div>
+    <button class="btn alt" id="syncNow" type="button" style="width:100%;margin-top:8px">تحديث الآن</button>
+    <h4>تصدير التقويم</h4>
+    <div class="dlg-grid2">
+      <div><label>التكرار الأسبوعي يبدأ من</label><input type="date" id="fFrom"></div>
+      <div><label>ويتكرر لحد</label><input type="date" id="fUntil"></div>
+    </div>
+    <h4>مواعيد الحصص</h4>
+    <div id="pRows"></div>
+    <div class="err" id="err2"></div>
+    <div class="acts"><button class="btn" id="sSave" type="button">حفظ</button><button class="btn ghost" id="sCancel" type="button">إلغاء</button></div>
+  </div>
 </dialog>
 
 <dialog id="dlgMsg">
@@ -873,7 +906,7 @@ $('#setBtn').onclick=()=>{const i=S.info;
   $('#pRows').innerHTML='<b style="color:var(--blue)">☀️ الفترة الصباحية</b>'+rows(S.periods,'s','e')+'<b style="color:#EA580C;display:block;margin:10px 0 4px">🌤️ الفترة الممتدة</b>'+rows(S.periodsX,'xs','xe')+'<b style="color:#8B5CF6;display:block;margin:10px 0 4px">🌙 الفترة المسائية</b>'+rows(S.periodsE,'es','ee')
     +'<b style="color:#D97706;display:block;margin:14px 0 4px">☕ الفسحة</b>'+['m','x','e'].map(k=>'<div class="row" style="margin-bottom:6px"><span>'+SI[k]+' '+SHN[k]+'</span><input type="time" data-bs="'+k+'" value="'+((S.brk[k]||{}).s||'')+'"><input type="time" data-be="'+k+'" value="'+((S.brk[k]||{}).e||'')+'"></div>').join('');
   $('#dlg2').showModal()};
-$('#sCancel').onclick=()=>$('#dlg2').close();
+$('#sCancel').onclick=$('#sCloseTop').onclick=()=>$('#dlg2').close();
 $('#sSave').onclick=()=>{
   const rd=(a,sk,ek)=>a.map((p,k)=>({start:$('[data-'+sk+'="'+k+'"]').value,end:$('[data-'+ek+'="'+k+'"]').value}));
   const np=rd(S.periods,'s','e'),ne=rd(S.periodsE,'es','ee'),nx=rd(S.periodsX,'xs','xe');
