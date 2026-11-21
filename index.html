@@ -248,11 +248,8 @@ header em{font-style:normal;opacity:.65;font-size:12px}
 .wkmid b{display:block;font-size:14.5px;color:var(--red);font-weight:900}
 .wkmid small{font-size:11.5px;color:var(--mute);font-weight:700}
 .wkhint{font-size:11px;color:var(--teal);font-weight:700;cursor:pointer;border:0;background:rgba(13,148,136,.14);border-radius:999px;padding:2px 9px;margin-top:3px;font-family:inherit}
-@keyframes slidePrev{from{opacity:.55;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
-@keyframes slideNext{from{opacity:.55;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
-.gw.anim-prev{animation:slidePrev .22s ease-out}
-.gw.anim-next{animation:slideNext .22s ease-out}
-.gw{touch-action:pan-y}
+.gw{touch-action:pan-y;contain:layout style}
+.gw table{transition:transform .16s cubic-bezier(.22,1,.36,1);will-change:transform}
 td.c .ldot{position:absolute;bottom:3px;inset-inline-end:4px;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.35)}
 
 /* Schedule Grid Glass Container */
@@ -781,15 +778,45 @@ function live(){
 }
 let weekOff=0,justSwiped=false;
 const WK_LABELS={0:'الأسبوع الحالي','-1':'قبل أسبوع','-2':'قبل أسبوعين','-3':'قبل 3 أسابيع','-4':'قبل 4 أسابيع'};
+function updateWeekUI(dir){
+  const today=new Date().getDay(),n=new Date(),nm=n.getHours()*60+n.getMinutes();
+  const sat=new Date();sat.setHours(0,0,0,0);sat.setDate(sat.getDate()-((sat.getDay()+1)%7)+weekOff*7);
+  const wd=idx=>{const x=new Date(sat);x.setDate(x.getDate()+idx);return x.getDate()+'/'+(x.getMonth()+1)};
+  const wISO=idx=>{const x=new Date(sat);x.setDate(x.getDate()+idx);return x.getFullYear()+'-'+pad2(x.getMonth()+1)+'-'+pad2(x.getDate())};
+  const isCurWk=weekOff===0;
+  $('#wkPrev').disabled=weekOff<=-4;
+  $('#wkNext').disabled=weekOff>=0;
+  $('#wkMid').innerHTML='<b>'+(WK_LABELS[weekOff]||'')+'</b><small>'+wd(0)+' — '+wd(5)+'</small>'+(isCurWk?'':'<div><button type="button" class="wkhint" id="wkToday">العودة للأسبوع الحالي</button></div>');
+  const wkT=$('#wkToday');if(wkT)wkT.onclick=()=>setWeek(0,1);
+  const ths=document.querySelectorAll('#grid th[data-d]');
+  if(ths.length===DAYS.length){
+    ths.forEach((th,idx)=>{
+      const sm=th.querySelector('small');if(sm)sm.textContent=wd(idx);
+      th.classList.toggle('today',isCurWk&&DAYS[idx]===today);
+    });
+    const byId=new Map(S.classes.map(c=>[c.id,c]));
+    document.querySelectorAll('#grid td.c[data-id]').forEach(td=>{
+      const c=byId.get(td.dataset.id);if(!c)return;
+      const di=DAYS.indexOf(c.day);
+      td.classList.toggle('live',isCurWk&&c.day===today&&nm>=mins(st(c))&&nm<mins(en(c)));
+      const has=di>=0&&hasLogOn(c.name,wISO(di));
+      let dot=td.querySelector('.ldot');
+      if(has&&!dot){dot=document.createElement('span');dot.className='ldot';dot.title='يوجد سجل مسجل في هذا اليوم';td.appendChild(dot)}
+      else if(!has&&dot)dot.remove();
+    });
+  }else{render();return}
+  const tb=$('#grid table');
+  if(tb&&dir){
+    tb.style.transition='none';
+    tb.style.transform='translate3d('+(dir<0?'-14px':'14px')+',0,0)';
+    requestAnimationFrame(()=>{tb.style.transition='';tb.style.transform='translate3d(0,0,0)'});
+  }
+}
 function setWeek(off,dir){
   const clamped=Math.max(-4,Math.min(0,off));
   if(clamped===weekOff)return;
   weekOff=clamped;
-  render();
-  const g=$('#grid');
-  g.classList.remove('anim-prev','anim-next');
-  void g.offsetWidth;
-  if(dir)g.classList.add(dir<0?'anim-prev':'anim-next');
+  updateWeekUI(dir);
 }
 function hasLogOn(clsName,iso){
   const l=(S.log||{})[clsName];if(!l)return false;
