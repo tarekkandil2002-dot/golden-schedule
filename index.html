@@ -239,6 +239,35 @@ header em{font-style:normal;opacity:.65;font-size:12px}
   box-shadow:0 4px 12px rgba(139,92,246,.18), inset 0 1px 0 rgba(255,255,255,.45);
 }
 
+/* Glass Week Navigation Bar (Swipe 4 Weeks Back) */
+.wkbar{
+  display:flex;align-items:center;justify-content:space-between;gap:6px;
+  margin:0 0 8px;padding:6px 8px;
+  background:var(--glass);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  border:1px solid var(--glass-border);
+  border-radius:16px;
+  box-shadow:var(--shadow-sm);
+}
+.wkbtn{
+  border:1px solid var(--glass-border-subtle);background:var(--glass-soft);color:var(--ink);
+  border-radius:11px;padding:6px 10px;font:inherit;font-size:12.5px;font-weight:800;
+  cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:transform .15s,opacity .15s;
+}
+.wkbtn:active{transform:scale(.95)}
+.wkbtn:disabled{opacity:.36;cursor:not-allowed}
+.wkmid{flex:1;text-align:center;line-height:1.25}
+.wkmid b{display:block;font-size:13.5px;color:var(--navy);font-weight:800}
+.wkmid small{font-size:11.5px;color:var(--mute);font-weight:700}
+.wkhint{font-size:11px;color:var(--teal);font-weight:700;cursor:pointer;border:0;background:rgba(13,148,136,.14);border-radius:999px;padding:2px 9px;margin-top:3px;font-family:inherit}
+@keyframes slidePrev{from{opacity:.55;transform:translateX(-18px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideNext{from{opacity:.55;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
+.gw.anim-prev{animation:slidePrev .22s ease-out}
+.gw.anim-next{animation:slideNext .22s ease-out}
+.gw{touch-action:pan-y}
+td.c .ldot{position:absolute;bottom:3px;inset-inline-end:4px;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.35)}
+
 /* Schedule Grid Glass Container */
 .gw{
   padding:5px;margin:0;
@@ -485,6 +514,11 @@ input[type=checkbox]{width:auto;accent-color:var(--teal)}
 </div>
 
 <div class="vsw" id="vsw"></div>
+<div class="wkbar" id="wkbar">
+  <button type="button" class="wkbtn" id="wkPrev" aria-label="الأسبوع السابق">‹ السابق</button>
+  <div class="wkmid" id="wkMid"></div>
+  <button type="button" class="wkbtn" id="wkNext" aria-label="الأسبوع التالي">التالي ›</button>
+</div>
 <div class="gw" id="grid"></div>
 <div class="note" id="brkInfo" style="text-align:center;margin:8px 12px 4px;font-size:13px;font-weight:800;color:var(--navy)"></div>
 <p class="note" style="text-align:center;margin:4px 12px 8px">اضغط على أي نص أو خانة أو ميعاد عشان تعدّله</p>
@@ -719,6 +753,22 @@ function live(){
     if(bl.length)h+='<div class="sec" style="font-size:14px">'+bl.join('<br>')+'</div>'}
   $('#lvN').innerHTML=h;$('#next').style.borderTopColor=col;
 }
+let weekOff=0,justSwiped=false;
+const WK_LABELS={0:'الأسبوع الحالي','-1':'قبل أسبوع','-2':'قبل أسبوعين','-3':'قبل 3 أسابيع','-4':'قبل 4 أسابيع'};
+function setWeek(off,dir){
+  const clamped=Math.max(-4,Math.min(0,off));
+  if(clamped===weekOff)return;
+  weekOff=clamped;
+  render();
+  const g=$('#grid');
+  g.classList.remove('anim-prev','anim-next');
+  void g.offsetWidth;
+  if(dir)g.classList.add(dir<0?'anim-prev':'anim-next');
+}
+function hasLogOn(clsName,iso){
+  const l=(S.log||{})[clsName];if(!l)return false;
+  return ['lesson','hw','ev'].some(t=>(l[t]||[]).some(x=>x&&x.date===iso));
+}
 function render(){
   const i=S.info,today=new Date().getDay(),n=new Date(),nm=n.getHours()*60+n.getMinutes();
   const L=(k,t,ph,tag,pre,cls)=>{const v=i[k]===undefined?DEF[k]:i[k];return '<'+tag+(cls?' class="'+cls+'"':'')+' data-h="'+k+'" data-t="'+t+'">'+(v?(pre||'')+esc(v):'<em>'+ph+'</em>')+'</'+tag+'>'};
@@ -726,15 +776,23 @@ function render(){
   live();
   const V=S.view||'m',cl=S.classes.filter(c=>(c.sh||'m')===V);
   $('#vsw').innerHTML=['m','x','e'].map(k=>'<button type="button" data-v="'+k+'" class="'+(k===V?'on':'')+'">'+SI[k]+' '+SHN[k]+' <span>('+S.classes.filter(c=>(c.sh||'m')===k).length+')</span></button>').join('');
-  const sat=new Date();sat.setHours(0,0,0,0);sat.setDate(sat.getDate()-((sat.getDay()+1)%7));
-  const wd=idx=>{const x=new Date(sat);x.setDate(x.getDate()+idx);return x.getDate()+'/'+(x.getMonth()+1)};
-  let h='<table><tr><th class="pc">'+esc(S.info.corner||'الحصة')+'</th>'+DAYS.map((d,idx)=>'<th data-d="'+d+'" class="'+(d===today?'today':'')+'" style="background:'+DAYC[d]+'"><small>'+wd(idx)+'</small>'+esc(dn(d))+'</th>').join('')+'</tr>';
+  const sat=new Date();sat.setHours(0,0,0,0);sat.setDate(sat.getDate()-((sat.getDay()+1)%7)+weekOff*7);
+  const dayDate=idx=>{const x=new Date(sat);x.setDate(x.getDate()+idx);return x};
+  const wd=idx=>{const x=dayDate(idx);return x.getDate()+'/'+(x.getMonth()+1)};
+  const wISO=idx=>{const x=dayDate(idx);return x.getFullYear()+'-'+pad2(x.getMonth()+1)+'-'+pad2(x.getDate())};
+  const isCurWk=weekOff===0;
+  $('#wkPrev').disabled=weekOff<=-4;
+  $('#wkNext').disabled=weekOff>=0;
+  $('#wkMid').innerHTML='<b>'+(WK_LABELS[weekOff]||'')+'</b><small>'+wd(0)+' — '+wd(5)+'</small>'+(isCurWk?'':'<div><button type="button" class="wkhint" id="wkToday">العودة للأسبوع الحالي</button></div>');
+  const wkT=$('#wkToday');if(wkT)wkT.onclick=()=>setWeek(0,1);
+  let h='<table><tr><th class="pc">'+esc(S.info.corner||'الحصة')+'</th>'+DAYS.map((d,idx)=>'<th data-d="'+d+'" class="'+(isCurWk&&d===today?'today':'')+'" style="background:'+DAYC[d]+'"><small>'+wd(idx)+'</small>'+esc(dn(d))+'</th>').join('')+'</tr>';
   for(let p=1;p<=S.periods.length;p++){
     h+='<tr><td class="pc" data-pi="'+(p-1)+'" style="background:'+PCOL[(p-1)%9][0]+';color:'+PCOL[(p-1)%9][1]+'">'+p+'<small>'+hm(shArr(V)[p-1].start)+'</small></td>';
-    for(const d of DAYS){
-      const c=cl.find(k=>k.day===d&&k.p<=p&&p<k.p+k.n);
-      if(c){if(c.p===p){const isLive=d===today&&nm>=mins(st(c))&&nm<mins(en(c));
-        const k=colorOf(c.name);h+='<td class="c'+(isLive?' live':'')+'" style="background:'+k[0]+';color:'+k[1]+'" rowspan="'+c.n+'" data-id="'+c.id+'"><i>'+esc(c.subject)+'</i>'+esc(c.name)+'</td>'}}
+    for(let di=0;di<DAYS.length;di++){
+      const d=DAYS[di],c=cl.find(k=>k.day===d&&k.p<=p&&p<k.p+k.n);
+      if(c){if(c.p===p){const isLive=isCurWk&&d===today&&nm>=mins(st(c))&&nm<mins(en(c));
+        const k=colorOf(c.name),dot=hasLogOn(c.name,wISO(di))?'<span class="ldot" title="يوجد سجل مسجل في هذا اليوم"></span>':'';
+        h+='<td class="c'+(isLive?' live':'')+'" style="background:'+k[0]+';color:'+k[1]+'" rowspan="'+c.n+'" data-id="'+c.id+'"><i>'+esc(c.subject)+'</i>'+esc(c.name)+dot+'</td>'}}
       else h+='<td data-d="'+d+'" data-p="'+p+'"></td>';
     }
     h+='</tr>';
@@ -746,7 +804,26 @@ function render(){
   $('#permBar').hidden=!('Notification' in window)||Notification.permission==='granted';
 }
 $('#vsw').onclick=e=>{const b=e.target.closest('button');if(b){S.view=b.dataset.v;save();render()}};
-$('#grid').onclick=e=>{const c=e.target.closest('th,td');if(!c)return;
+$('#wkPrev').onclick=()=>setWeek(weekOff-1,-1);
+$('#wkNext').onclick=()=>setWeek(weekOff+1,1);
+/* السحب باليد يمين ويسار للتنقل بين الأسابيع (حتى 4 أسابيع للخلف) */
+(()=>{
+  const g=$('#grid');let sx=0,sy=0,down=false;
+  const start=(x,y)=>{sx=x;sy=y;down=true};
+  const end=(x,y)=>{
+    if(!down)return;down=false;
+    const dx=x-sx,dy=y-sy;
+    if(Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.35){
+      justSwiped=true;setTimeout(()=>{justSwiped=false},260);
+      if(dx>0)setWeek(weekOff-1,-1);else setWeek(weekOff+1,1);
+    }
+  };
+  g.addEventListener('touchstart',e=>{if(e.touches.length===1)start(e.touches[0].clientX,e.touches[0].clientY)},{passive:true});
+  g.addEventListener('touchend',e=>{if(e.changedTouches.length===1)end(e.changedTouches[0].clientX,e.changedTouches[0].clientY)},{passive:true});
+  g.addEventListener('mousedown',e=>{if(e.button===0)start(e.clientX,e.clientY)});
+  g.addEventListener('mouseup',e=>end(e.clientX,e.clientY));
+})();
+$('#grid').onclick=e=>{if(justSwiped)return;const c=e.target.closest('th,td');if(!c)return;
   if(c.tagName==='TH'){c.dataset.d!==undefined?openEdit('day',c.dataset.d,'اسم اليوم',dn(c.dataset.d)):openEdit('info','corner','عنوان العمود',S.info.corner||'الحصة');return}
   if(c.classList.contains('pc')){openEdit('p',+c.dataset.pi,'مواعيد الحصة '+(+c.dataset.pi+1));return}
   c.dataset.id?openForm(c.dataset.id):openForm(null,+c.dataset.d,+c.dataset.p)};
