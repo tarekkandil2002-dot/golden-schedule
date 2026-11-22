@@ -250,7 +250,11 @@ header em{font-style:normal;opacity:.65;font-size:12px}
 .wkhint{font-size:11px;color:var(--teal);font-weight:700;cursor:pointer;border:0;background:rgba(13,148,136,.14);border-radius:999px;padding:2px 9px;margin-top:3px;font-family:inherit}
 .gw{touch-action:pan-y;contain:layout style}
 .gw table{transition:transform .16s cubic-bezier(.22,1,.36,1);will-change:transform}
-td.c .ldot{position:absolute;bottom:3px;inset-inline-end:4px;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 4px rgba(0,0,0,.35)}
+td.c .ldots{position:absolute;bottom:3px;inset-inline-end:4px;display:flex;gap:2.5px;align-items:center}
+td.c .ldot{width:8px;height:8px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.lkey{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 12px 2px;font-size:12px;font-weight:700;color:var(--mute)}
+.lkey span{display:inline-flex;align-items:center;gap:4px}
+.lkey i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.22)}
 
 /* Schedule Grid Glass Container */
 .gw{
@@ -523,7 +527,8 @@ dialog.full-dlg{
   <button type="button" class="wkbtn" id="wkNext" aria-label="الأسبوع التالي">التالي ›</button>
 </div>
 <div class="gw" id="grid"></div>
-<div class="note" id="brkInfo" style="text-align:center;margin:8px 12px 4px;font-size:13px;font-weight:800;color:var(--navy)"></div>
+<div class="lkey" aria-label="دليل ألوان النقاط"><span><i style="background:#2563EB"></i>الحصة</span><span><i style="background:#F59E0B"></i>الواجب</span><span><i style="background:#8B5CF6"></i>التقييم</span></div>
+<div class="note" id="brkInfo" style="text-align:center;margin:6px 12px 4px;font-size:13px;font-weight:800;color:var(--navy)"></div>
 <p class="note" style="text-align:center;margin:4px 12px 8px">اضغط على أي نص أو خانة أو ميعاد عشان تعدّله</p>
 
 <nav class="dock" aria-label="شريط التنقل السريع">
@@ -799,10 +804,12 @@ function updateWeekUI(dir){
       const c=byId.get(td.dataset.id);if(!c)return;
       const di=DAYS.indexOf(c.day);
       td.classList.toggle('live',isCurWk&&c.day===today&&nm>=mins(st(c))&&nm<mins(en(c)));
-      const has=di>=0&&hasLogOn(c.name,wISO(di));
-      let dot=td.querySelector('.ldot');
-      if(has&&!dot){dot=document.createElement('span');dot.className='ldot';dot.title='يوجد سجل مسجل في هذا اليوم';td.appendChild(dot)}
-      else if(!has&&dot)dot.remove();
+      const html=di>=0?logDotsHTML(c.name,wISO(di)):'';
+      let box=td.querySelector('.ldots');
+      if(html){
+        if(!box){td.insertAdjacentHTML('beforeend',html)}
+        else{const tmp=document.createElement('div');tmp.innerHTML=html;box.replaceWith(tmp.firstChild)}
+      }else if(box)box.remove();
     });
   }else{render();return}
   const tb=$('#grid table');
@@ -818,9 +825,13 @@ function setWeek(off,dir){
   weekOff=clamped;
   updateWeekUI(dir);
 }
-function hasLogOn(clsName,iso){
-  const l=(S.log||{})[clsName];if(!l)return false;
-  return ['lesson','hw','ev'].some(t=>(l[t]||[]).some(x=>x&&x.date===iso));
+function logDotsHTML(clsName,iso){
+  const l=(S.log||{})[clsName];if(!l)return '';
+  const ds=[];
+  if((l.lesson||[]).some(x=>x&&x.date===iso))ds.push('<span class="ldot" style="background:#2563EB" title="حصة"></span>');
+  if((l.hw||[]).some(x=>x&&x.date===iso))ds.push('<span class="ldot" style="background:#F59E0B" title="واجب"></span>');
+  if((l.ev||[]).some(x=>x&&x.date===iso))ds.push('<span class="ldot" style="background:#8B5CF6" title="تقييم"></span>');
+  return ds.length?'<span class="ldots">'+ds.join('')+'</span>':'';
 }
 function render(){
   const i=S.info,today=new Date().getDay(),n=new Date(),nm=n.getHours()*60+n.getMinutes();
@@ -844,7 +855,7 @@ function render(){
     for(let di=0;di<DAYS.length;di++){
       const d=DAYS[di],c=cl.find(k=>k.day===d&&k.p<=p&&p<k.p+k.n);
       if(c){if(c.p===p){const isLive=isCurWk&&d===today&&nm>=mins(st(c))&&nm<mins(en(c));
-        const k=colorOf(c.name),dot=hasLogOn(c.name,wISO(di))?'<span class="ldot" title="يوجد سجل مسجل في هذا اليوم"></span>':'';
+        const k=colorOf(c.name),dot=logDotsHTML(c.name,wISO(di));
         h+='<td class="c'+(isLive?' live':'')+'" style="background:'+k[0]+';color:'+k[1]+'" rowspan="'+c.n+'" data-id="'+c.id+'"><i>'+esc(c.subject)+'</i>'+esc(c.name)+dot+'</td>'}}
       else h+='<td data-d="'+d+'" data-p="'+p+'"></td>';
     }
@@ -1044,7 +1055,7 @@ function cRender0(){
       +'<div class="rin"><input type="date" class="rd" value="'+l.date+'"><input class="rp" placeholder="رقم الصفحة" value="'+esc(l.pages||'')+'"><button type="button" class="rs" style="background:'+T.col+'">حفظ</button></div><div class="rhist" hidden></div></div>'}).join('');
 }
 $('#clsBtn').onclick=cOpen;
-$('#cClose').onclick=()=>$('#dlgC').close();
+$('#cClose').onclick=()=>{$('#dlgC').close();updateWeekUI()};
 $('#cChips').onclick=async e=>{
   const c=e.target.closest('[data-c]');if(c){CC=c.dataset.c;cRender();return}
   if(e.target.closest('#cAdd')){const nm=((await gPrompt('اسم الفصل (مثال: 7/2)','7/2'))||'').trim();
