@@ -591,28 +591,65 @@ dialog.full-dlg{
   </div>
 </dialog>
 
-<dialog id="dlgI">
-  <h3>استيراد الجدول</h3>
-  <h4 style="margin-top:8px">من صورة الجدول (تجريبي)</h4>
-  <p class="note">اختار صورة الجدول من الاستوديو أو صوّرها. لازم تكون مستقيمة وواضحة، وأول مرة بتحتاج نت. الصورة بتتحط في الفترة المعروضة في الجدول (صباحي / ممتد / مسائي).</p>
-  <div class="row"><div><label>الأيام على</label><select id="pDir"><option value="r">اليمين</option><option value="l">الشمال</option></select></div><div><label>أول يوم في الجدول</label><select id="pFirst"><option value="s">السبت</option><option value="u">الأحد</option></select></div></div>
-  <label>صورة الجدول</label><input type="file" id="pFile" accept="image/*">
-  <div class="note" id="pMsg"></div>
-  <h4>أو من كود</h4>
-  <p class="note">الصق كود الجدول أو اختار ملف الكود. تقدر كمان تاخد نسخة من جدولك الحالي للاحتفاظ بيها.</p>
-  <textarea id="iCode" rows="5" style="font:13px monospace;direction:ltr"></textarea>
-  <label>أو اختار ملف</label><input type="file" id="iFile" accept=".json,.txt,application/json,text/plain">
-  <div class="err" id="iMsg"></div>
-  <div class="acts"><button class="btn" id="iDo" type="button">استيراد من الكود</button><button class="btn ghost" id="iShow" type="button">كود جدولي الحالي</button></div>
-  <div class="acts"><button class="btn ghost" id="iClose" type="button">إغلاق</button></div>
+<dialog id="dlgI" class="full-dlg">
+  <div class="cH"><span>📷 استيراد الجدول</span><button id="iCloseTop" type="button" aria-label="إغلاق">✕</button></div>
+  <div class="dlg-body">
+    <h4 style="margin-top:4px">المسح الفائق من أي صورة جدول</h4>
+    <p class="note">يقرا أي جدول من أي جهة (أيام في صفوف أو في أعمدة، أسبوع كامل أو أيام متفرقة، حتى لو فيه أيام فاضية أو الصورة مايلة أو باهتة). النتيجة بتتحط في الفترة المعروضة حاليًا.</p>
+    <div class="dlg-grid2">
+      <div><label>شكل الجدول في الصورة</label>
+        <select id="pLayout">
+          <option value="auto">تلقائي (يتعرّف على أسماء الأيام والجهة)</option>
+          <option value="rr">الأيام في صفوف (على اليمين)</option>
+          <option value="rl">الأيام في صفوف (على الشمال)</option>
+          <option value="cr">الأيام في أعمدة (من اليمين للشمال)</option>
+          <option value="cl">الأيام في أعمدة (من الشمال لليمين)</option>
+        </select>
+      </div>
+      <div><label>أول يوم افتراضي (لو الأسماء مش واضحة)</label><select id="pFirst"><option value="s">السبت</option><option value="u">الأحد</option></select></div>
+    </div>
+    <div class="dlg-grid2">
+      <div><label>نوع الكتابة في الجدول</label>
+        <select id="pMode">
+          <option value="num">أرقام فصول (7/2 · 1/3 — أسرع)</option>
+          <option value="ar">عربي + أرقام (لأي جدول نصي)</option>
+        </select>
+      </div>
+      <div><label>تدوير الصورة قبل المسح</label>
+        <select id="pRot">
+          <option value="0">طبيعي (0°)</option>
+          <option value="90">تدوير يمين (90°)</option>
+          <option value="180">مقلوبة (180°)</option>
+          <option value="270">تدوير يسار (270°)</option>
+        </select>
+      </div>
+    </div>
+    <details style="margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--glass-soft)">
+      <summary style="cursor:pointer;font-size:13.5px;font-weight:800;color:var(--teal)">✨ المسح بالذكاء الاصطناعي Gemini Vision (اختياري — أقوى وأدق لأي جدول حتى خط اليد)</summary>
+      <p class="note" style="margin-top:6px">لو معاك مفتاح Gemini API مجاني من Google AI Studio، حطه هنا مرة واحدة وهيتحفظ على موبايلك ويقرا أي جدول بأعلى دقة ممكنة مهما كان شكله أو إضاءته.</p>
+      <input id="pAiKey" type="password" placeholder="AIzaSy... (اختياري)" style="margin-top:6px;direction:ltr;text-align:left">
+    </details>
+    <label>اختار أو صوّر الجدول</label><input type="file" id="pFile" accept="image/*">
+    <div class="pbar" id="pBar" hidden style="margin-top:8px"><i id="pFill" style="width:0%"></i></div>
+    <div class="note" id="pMsg" style="font-weight:700;color:var(--blue)"></div>
+    <h4>أو من كود / ملف JSON</h4>
+    <p class="note">الصق كود الجدول أو اختار ملف الكود. تقدر كمان تاخد نسخة من جدولك الحالي للاحتفاظ بيها.</p>
+    <textarea id="iCode" rows="5" style="font:13px monospace;direction:ltr"></textarea>
+    <label>أو اختار ملف</label><input type="file" id="iFile" accept=".json,.txt,application/json,text/plain">
+    <div class="err" id="iMsg"></div>
+    <div class="acts"><button class="btn" id="iDo" type="button">استيراد من الكود</button><button class="btn ghost" id="iShow" type="button">كود جدولي الحالي</button></div>
+    <div class="acts"><button class="btn ghost" id="iClose" type="button">إغلاق</button></div>
+  </div>
 </dialog>
 
-<dialog id="dlgP">
-  <h3>راجع الحصص اللي اتقرت</h3>
-  <p class="note">الخانات البرتقالي مش متأكد منها، راجعها وعدّلها. امسح الخانة لو مش عايزها.</p>
-  <div id="pvList" style="margin-top:8px"></div>
-  <div class="err" id="pvErr"></div>
-  <div class="acts"><button class="btn" id="pvOk" type="button">اعتماد واستبدال الجدول</button><button class="btn ghost" id="pvCancel" type="button">إلغاء</button></div>
+<dialog id="dlgP" class="full-dlg">
+  <div class="cH"><span>✅ راجع الحصص اللي اتقرت</span><button id="pvCloseTop" type="button" aria-label="إغلاق">✕</button></div>
+  <div class="dlg-body">
+    <p class="note" id="pvInfo">قارن كل خانة بالصورة المصغّرة جنبها. الخانات البرتقالي محتاجة مراجعة سريعة، وامسح الخانة الفاضية لو مش عايزها.</p>
+    <div id="pvList" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"></div>
+    <div class="err" id="pvErr"></div>
+    <div class="acts"><button class="btn" id="pvOk" type="button">اعتماد واستبدال الجدول</button><button class="btn ghost" id="pvCancel" type="button">إلغاء</button></div>
+  </div>
 </dialog>
 
 <dialog id="dlgE">
@@ -1249,85 +1286,323 @@ function syncInit(){
   window.addEventListener('online',()=>{syncTry=0;syncRun(false)});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncTry=0;syncMaybe()}})}
 
-/* ---- استيراد من صورة: اكتشاف خطوط الجدول + قراءة الأرقام ---- */
-function gridAnalyze(g,w,h,rtl){
+/* ---- المسح الفائق لأي جدول متصور: أي جهة + قراءة أسماء الأيام + دعم الأيام الفاضية + ذكاء اصطناعي اختياري ---- */
+function stretchGray(d,len){
+  const g=new Uint8Array(len),hist=new Uint32Array(256);
+  for(let i=0;i<len;i++){const v=(d[i*4]*299+d[i*4+1]*587+d[i*4+2]*114)/1000|0;g[i]=v;hist[v]++}
+  let lo=0,hi=255,acc=0,pLo=len*0.02,pHi=len*0.98;
+  for(let i=0;i<256;i++){acc+=hist[i];if(acc>=pLo){lo=i;break}}
+  acc=0;for(let i=255;i>=0;i--){acc+=hist[i];if(acc>=len-pHi){hi=i;break}}
+  const span=Math.max(24,hi-lo);
+  for(let i=0;i<len;i++)g[i]=Math.max(0,Math.min(255,Math.round((g[i]-lo)*255/span)));
+  return g;
+}
+function detectSkew(cv){
+  const tw=420,th=Math.max(120,Math.round(cv.height*tw/cv.width));
+  const tc=document.createElement('canvas');tc.width=tw;tc.height=th;
+  const tx=tc.getContext('2d',{willReadFrequently:true});
+  tx.drawImage(cv,0,0,tw,th);
+  const g=stretchGray(tx.getImageData(0,0,tw,th).data,tw*th);
+  const bin=new Uint8Array(tw*th);
+  let sum=0;for(let i=0;i<tw*th;i++)sum+=g[i];
+  const thr=Math.max(60,sum/(tw*th)-16);
+  for(let i=0;i<tw*th;i++)bin[i]=g[i]<thr?1:0;
+  let bestA=0,bestScore=-1;
+  const cx=tw/2,cy=th/2;
+  for(let a=-6;a<=6;a+=0.5){
+    const rad=a*Math.PI/180,co=Math.cos(rad),si=Math.sin(rad);
+    const proj=new Float32Array(th);
+    for(let y=4;y<th-4;y+=2){
+      for(let x=4;x<tw-4;x+=2){
+        if(!bin[y*tw+x])continue;
+        const ny=Math.round((x-cx)*si+(y-cy)*co+cy);
+        if(ny>=0&&ny<th)proj[ny]++;
+      }
+    }
+    let sc=0;for(let i=0;i<th;i++)sc+=proj[i]*proj[i];
+    if(sc>bestScore){bestScore=sc;bestA=a}
+  }
+  return Math.abs(bestA)>=0.5?bestA:0;
+}
+function adaptiveMask(g,w,h,R,delta){
   const W=w+1,I=new Float64Array(W*(h+1));
   for(let y=0;y<h;y++){let r=0;for(let x=0;x<w;x++){r+=g[y*w+x];I[(y+1)*W+x+1]=I[y*W+x+1]+r}}
-  const R=12,dk=new Uint8Array(w*h);
+  const dk=new Uint8Array(w*h);
   for(let y=0;y<h;y++){const y0=Math.max(0,y-R),y1=Math.min(h,y+R+1);
     for(let x=0;x<w;x++){const x0=Math.max(0,x-R),x1=Math.min(w,x+R+1),n=(x1-x0)*(y1-y0),s=I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0];
-      dk[y*w+x]=g[y*w+x]<s/n-18?1:0}}
-  const run=(get,len)=>{let best=0,cur=0,gap=0;for(let i=0;i<len;i++){if(get(i)){cur+=1+gap;gap=0}else if(cur&&gap<2)gap++;else{if(cur>best)best=cur;cur=0;gap=0}}return Math.max(best,cur)};
+      dk[y*w+x]=g[y*w+x]<s/n-delta?1:0}}
+  return dk;
+}
+function matchDayName(txt){
+  const s=String(txt||'').replace(/[\u064B-\u065F\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').toLowerCase();
+  if(/سبت|sat/.test(s))return 6;
+  if(/احد|حد|sun/.test(s))return 0;
+  if(/اثنين|اتنين|ثنين|تنين|mon/.test(s))return 1;
+  if(/ثلاث|تلات|تلاث|tue/.test(s))return 2;
+  if(/اربع|ربع|wed/.test(s))return 3;
+  if(/خميس|خمس|thu/.test(s))return 4;
+  return null;
+}
+function findGridLines(g,w,h,numDays){
+  const run=(get,len,maxGap)=>{let best=0,cur=0,gap=0;for(let i=0;i<len;i++){if(get(i)){cur+=1+gap;gap=0}else if(cur&&gap<maxGap)gap++;else{if(cur>best)best=cur;cur=0;gap=0}}return Math.max(best,cur)};
   const cluster=(arr,gap)=>{const o=[];let s=null,p=null;for(const v of arr){if(s===null){s=p=v}else if(v-p<=gap){p=v}else{o.push((s+p)/2);s=p=v}}if(s!==null)o.push((s+p)/2);return o};
-  const hs=[];let mh=0;for(let y=0;y<h;y++){const v=run(x=>dk[y*w+x],w);hs.push(v);if(v>mh)mh=v}
-  const ys=cluster(hs.map((v,y)=>v>=0.5*mh?y:-1).filter(y=>y>=0),4);
-  if(ys.length<3)return null;
-  const hy0=Math.round(ys[0])+5,hy1=Math.round(ys[1])-5,xsC=[];
-  for(let x=0;x<w;x++){let c=0;for(let y=hy0;y<=hy1;y++)c+=dk[y*w+x];if(c>=0.75*(hy1-hy0+1))xsC.push(x)}
-  const xs=cluster(xsC,4);
-  if(xs.length<3)return null;
-  const pres=(r,k)=>{const y0=Math.round(ys[r]+0.2*(ys[r+1]-ys[r])),y1=Math.round(ys[r+1]-0.2*(ys[r+1]-ys[r]));let c=0;
-    for(let y=y0;y<=y1;y++){let f=0;for(let x=Math.round(xs[k])-3;x<=Math.round(xs[k])+3;x++)if(dk[y*w+x]){f=1;break}c+=f}return c>=0.6*(y1-y0+1)};
-  const n=xs.length-1,cells=[];
-  const mk=(r,l,rt,p,cnt)=>{const cw=xs[rt+1]-xs[l],ch=ys[r+1]-ys[r],bx=rtl?0.05:0.17;
-    const box={x:Math.round(xs[l]+bx*cw),y:Math.round(ys[r]+0.28*ch),w:Math.round(0.78*cw),h:Math.round(0.67*ch)};
-    let ink=0;for(let y=box.y;y<box.y+box.h;y++)for(let x=box.x;x<box.x+box.w;x++)ink+=dk[y*w+x];
-    cells.push({row:r-1,p,n:cnt,box,ink:ink/(box.w*box.h)})};
-  for(let r=1;r<ys.length-1;r++){
-    if(rtl){let c=n-2;while(c>=0){const st=c;while(c-1>=0&&!pres(r,c))c--;mk(r,c,st,n-1-st,st-c+1);c--}}
-    else{let c=1;while(c<n){const st=c;while(c+1<n&&!pres(r,c+1))c++;mk(r,st,c,st,c-st+1);c++}}
+  for(const delta of [15,9,22]){
+    const dk=adaptiveMask(g,w,h,16,delta);
+    const hs=[];let mh=0;
+    for(let y=0;y<h;y++){const v=run(x=>dk[y*w+x],w,4);hs.push(v);if(v>mh)mh=v}
+    if(mh<w*0.30)continue;
+    const ys=cluster(hs.map((v,y)=>v>=0.40*mh?y:-1).filter(y=>y>=0),6);
+    if(ys.length<3)continue;
+    const ty0=Math.round(ys[0]),ty1=Math.round(ys[ys.length-1]),th=Math.max(1,ty1-ty0);
+    const xsC=[];
+    for(let x=0;x<w;x++){let tot=0;for(let y=ty0;y<=ty1;y++){if(dk[y*w+x])tot++}if(tot>=th*0.38)xsC.push(x)}
+    let xs=cluster(xsC,6);
+    if(xs.length<3){
+      const hy0=Math.round(ys[0])+4,hy1=Math.round(ys[1])-4,xsH=[];
+      for(let x=0;x<w;x++){let c=0;for(let y=hy0;y<=hy1;y++)c+=dk[y*w+x];if(c>=0.60*(hy1-hy0+1))xsH.push(x)}
+      xs=cluster(xsH,6);
+    }
+    if(xs.length>=3)return{ys,xs,dk,fallback:false};
   }
-  return{ys,xs,cells};
+  const dk=adaptiveMask(g,w,h,16,12);
+  let x0=w,y0=h,x1=0,y1=0;
+  for(let y=10;y<h-10;y+=2)for(let x=10;x<w-10;x+=2)if(dk[y*w+x]){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  if(x1-x0>w*0.28&&y1-y0>h*0.22){
+    const rows=numDays+1,cols=Math.min(S.periods.length,8)+1;
+    const ys=Array.from({length:rows+1},(_,i)=>y0+i*(y1-y0)/rows);
+    const xs=Array.from({length:cols+1},(_,i)=>x0+i*(x1-x0)/cols);
+    return{ys,xs,dk,fallback:true};
+  }
+  return null;
+}
+function boxOf(ys,xs,r0,r1,c0,c1,w,h){
+  const cw=xs[c1]-xs[c0],ch=ys[r1]-ys[r0];
+  const px=Math.max(3,Math.round(cw*0.07)),py=Math.max(3,Math.round(ch*0.09));
+  return{x:Math.max(0,Math.round(xs[c0]+px)),y:Math.max(0,Math.round(ys[r0]+py)),w:Math.max(6,Math.round(cw-px*2)),h:Math.max(6,Math.round(ch-py*2))};
+}
+function inkOf(dk,w,h,b){
+  let ink=0;const y1=Math.min(h,b.y+b.h),x1=Math.min(w,b.x+b.w);
+  for(let y=b.y;y<y1;y++)for(let x=b.x;x<x1;x++)ink+=dk[y*w+x];
+  return ink/Math.max(1,b.w*b.h);
+}
+function extractCells(gl,w,h,layout,dayMap,ORD){
+  const {ys,xs,dk}=gl,R=ys.length-1,C=xs.length-1,cells=[];
+  const vPres=(r,k)=>{const y0=Math.round(ys[r]+0.18*(ys[r+1]-ys[r])),y1=Math.round(ys[r+1]-0.18*(ys[r+1]-ys[r]));let c=0;
+    for(let y=y0;y<=y1;y++){let f=0;for(let x=Math.max(0,Math.round(xs[k])-4);x<=Math.min(w-1,Math.round(xs[k])+4);x++)if(dk[y*w+x]){f=1;break}c+=f}return c>=0.50*(y1-y0+1)};
+  const hPres=(c,k)=>{const x0=Math.round(xs[c]+0.18*(xs[c+1]-xs[c])),x1=Math.round(xs[c+1]-0.18*(xs[c+1]-xs[c]));let cnt=0;
+    for(let x=x0;x<=x1;x++){let f=0;for(let y=Math.max(0,Math.round(ys[k])-4);y<=Math.min(h-1,Math.round(ys[k])+4);y++)if(dk[y*w+x]){f=1;break}cnt+=f}return cnt>=0.50*(x1-x0+1)};
+  if(layout==='rr'||layout==='rl'){
+    const rtl=layout==='rr';
+    for(let r=1;r<R;r++){
+      const day=(dayMap&&dayMap[r]!==undefined)?dayMap[r]:ORD[r-1];
+      if(day===undefined)continue;
+      if(rtl){let c=C-2;while(c>=0){const st=c;while(c-1>=0&&!vPres(r,c))c--;const p=C-1-st,n=st-c+1,b=boxOf(ys,xs,r,r+1,c,st+1,w,h);cells.push({day,p,n,box:b,ink:inkOf(dk,w,h,b)});c--}}
+      else{let c=1;while(c<C){const st=c;while(c+1<C&&!vPres(r,c+1))c++;const p=st,n=c-st+1,b=boxOf(ys,xs,r,r+1,st,c+1,w,h);cells.push({day,p,n,box:b,ink:inkOf(dk,w,h,b)});c++}}
+    }
+  }else{
+    const rtl=layout==='cr';
+    const colOrder=rtl?Array.from({length:C-1},(_,i)=>C-2-i):Array.from({length:C-1},(_,i)=>i+1);
+    colOrder.forEach((c,ci)=>{
+      const day=(dayMap&&dayMap[c]!==undefined)?dayMap[c]:ORD[ci];
+      if(day===undefined)return;
+      let r=1;
+      while(r<R){
+        const st=r;while(r+1<R&&!hPres(c,r+1))r++;
+        const p=st,n=r-st+1,b=boxOf(ys,xs,st,r+1,c,c+1,w,h);
+        cells.push({day,p,n,box:b,ink:inkOf(dk,w,h,b)});
+        r++;
+      }
+    });
+  }
+  return cells;
+}
+function prepCellCanvas(cv,b,strong){
+  const sc=3,pd=26,cw=b.w*sc,ch=b.h*sc;
+  const cc=document.createElement('canvas');cc.width=cw+pd*2;cc.height=ch+pd*2;
+  const x2=cc.getContext('2d',{willReadFrequently:true});
+  x2.fillStyle='#fff';x2.fillRect(0,0,cc.width,cc.height);
+  x2.drawImage(cv,b.x,b.y,b.w,b.h,pd,pd,cw,ch);
+  const img=x2.getImageData(pd,pd,cw,ch),d=img.data,g=stretchGray(d,cw*ch);
+  let sum=0;for(let i=0;i<g.length;i++)sum+=g[i];
+  const mean=sum/g.length,thr=strong?Math.min(185,mean-12):Math.min(170,mean-22);
+  const borderW=Math.max(2,Math.round(cw*0.04)),borderH=Math.max(2,Math.round(ch*0.05));
+  for(let y=0;y<ch;y++){
+    for(let x=0;x<cw;x++){
+      const idx=y*cw+x,onEdge=x<borderW||x>=cw-borderW||y<borderH||y>=ch-borderH;
+      const v=(onEdge&&g[idx]>thr-35)?255:(g[idx]<thr?0:255);
+      d[idx*4]=d[idx*4+1]=d[idx*4+2]=v;d[idx*4+3]=255;
+    }
+  }
+  x2.putImageData(img,pd,pd);
+  return cc;
+}
+function makeThumb(cv,b){
+  const tc=document.createElement('canvas'),tw=68,th=38;tc.width=tw;tc.height=th;
+  const tx=tc.getContext('2d');tx.fillStyle='#fff';tx.fillRect(0,0,tw,th);
+  tx.drawImage(cv,b.x,b.y,b.w,b.h,0,0,tw,th);
+  return tc.toDataURL('image/jpeg',0.72);
 }
 let TS=null;
 function loadTess(){return TS||(TS=new Promise((ok,no)=>{if(window.Tesseract)return ok();const t=document.createElement('script');t.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';t.onload=ok;t.onerror=()=>{TS=null;no(new Error('net'))};document.head.appendChild(t)}))}
-function normName(t){const s=String(t||'').replace(/[^0-9\/]/g,'');
-  if(/^\d{1,2}\/\d{1,2}$/.test(s))return{v:s,chk:0};
-  const m=/^(\d{1,2})1(\d)$/.exec(s);return{v:(!s.includes('/')&&m)?m[1]+'/'+m[2]:s,chk:1}}
-const pMsg=t=>{$('#pMsg').textContent=t};
+const arDig=s=>String(s||'').replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/[۰-۹]/g,c=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(c));
+function normName(t,arMode,conf){
+  let raw=arDig(t).replace(/\s+/g,' ').trim();
+  if(arMode){
+    raw=raw.replace(/[\\|_]+/g,'/').replace(/\s*\/\s*/g,'/').trim();
+    return{v:raw,chk:(conf<65||!raw)?1:0};
+  }
+  let s=raw.replace(/[oO]/g,'0').replace(/[\\\-|Il]+/g,'/').replace(/\s+/g,'/').replace(/[^0-9\/]/g,'').replace(/\/+/g,'/').replace(/^\/|\/$/g,'');
+  if(/^\d{1,2}\/\d{1,2}$/.test(s))return{v:s,chk:conf<60?1:0};
+  const m=/^(\d{1,2})1(\d)$/.exec(s);
+  if(!s.includes('/')&&m)return{v:m[1]+'/'+m[2],chk:1};
+  return{v:s,chk:1};
+}
+async function scanWithGemini(cv,apiKey){
+  const b64=cv.toDataURL('image/jpeg',0.88).split(',')[1];
+  const prompt='Extract ALL classes from this school timetable photo (any orientation, rows or columns, full or partial week, ignore empty days/cells). Return ONLY valid JSON array with no markdown: [{"day":6,"p":1,"n":1,"name":"7/2","subject":"E"}]. Day numbers: Saturday=6, Sunday=0, Monday=1, Tuesday=2, Wednesday=3, Thursday=4. p=starting period (1-based), n=duration in periods (1 or 2), name=class name (convert Arabic digits to 0-9 like 7/2), subject=short subject letter or name (default "E" if not shown).';
+  const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(apiKey);
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}})});
+  if(!r.ok)throw new Error('api_'+r.status);
+  const j=await r.json();
+  const txt=(((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||'[]';
+  const arr=JSON.parse(txt.replace(/```json|```/g,'').trim());
+  if(!Array.isArray(arr)||!arr.length)throw new Error('empty');
+  return arr.filter(x=>x&&DAYS.includes(+x.day)&&+x.p>=1&&String(x.name||'').trim()).map(x=>({
+    day:+x.day,p:+x.p,n:Math.max(1,Math.min(2,+x.n||1)),
+    txt:{v:arDig(String(x.name||'').trim()),chk:0},
+    subj:String(x.subject||'').trim(),thumb:''
+  }));
+}
+const pMsg=(t,pct)=>{$('#pMsg').textContent=t;const bar=$('#pBar'),fl=$('#pFill');if(pct===undefined){bar.hidden=true}else{bar.hidden=false;fl.style.width=Math.min(100,Math.max(2,pct))+'%'}};
+$('#pAiKey').onchange=()=>{S.aiKey=$('#pAiKey').value.trim();save()};
 $('#pFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
-    pMsg('بحمّل الصورة...');
-    const bmp=await createImageBitmap(f),W=1200,H=Math.round(bmp.height*W/bmp.width);
-    const cv=document.createElement('canvas');cv.width=W;cv.height=H;const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(bmp,0,0,W,H);
-    const d=cx.getImageData(0,0,W,H).data,g=new Uint8Array(W*H);
-    for(let i=0;i<W*H;i++)g[i]=(d[i*4]*299+d[i*4+1]*587+d[i*4+2]*114)/1000;
-    pMsg('بدوّر على الجدول...');
-    const r=gridAnalyze(g,W,H,$('#pDir').value==='r');
-    if(!r){pMsg('ما لقيتش جدول في الصورة. صوّره مستقيم وواضح وكل الخطوط ظاهرة.');return}
+    pMsg('بحمّل الصورة وأظبّط الإضاءة والتدوير...',8);
+    const bmp=await createImageBitmap(f),rot=+$('#pRot').value||0;
+    const sw=rot===90||rot===270?bmp.height:bmp.width,sh=rot===90||rot===270?bmp.width:bmp.height;
+    const W=Math.max(1100,Math.min(1500,sw)),H=Math.round(sh*W/sw);
+    let cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    let cx=cv.getContext('2d',{willReadFrequently:true});
+    cx.fillStyle='#fff';cx.fillRect(0,0,W,H);
+    cx.save();cx.translate(W/2,H/2);cx.rotate(rot*Math.PI/180);
+    const dw=rot===90||rot===270?H:W,dh=rot===90||rot===270?W:H;
+    cx.drawImage(bmp,-dw/2,-dh/2,dw,dh);cx.restore();
+
+    const aiKey=($('#pAiKey').value||S.aiKey||'').trim();
+    if(aiKey){
+      S.aiKey=aiKey;save();
+      pMsg('✨ بقرا الجدول بالذكاء الاصطناعي (أي جهة وأي خط)...',45);
+      const aiRes=await scanWithGemini(cv,aiKey);
+      pMsg('');showPreview(aiRes,false,'✨ تمت القراءة بالذكاء الاصطناعي — راجع الحصص وعدّل أي خانة لو حابب.');
+      e.target.value='';return;
+    }
+
+    pMsg('بظبّط ميل الصورة تلقائيًا...',16);
+    const ang=detectSkew(cv);
+    if(ang){
+      const rcv=document.createElement('canvas');rcv.width=W;rcv.height=H;
+      const rcx=rcv.getContext('2d',{willReadFrequently:true});
+      rcx.fillStyle='#fff';rcx.fillRect(0,0,W,H);
+      rcx.translate(W/2,H/2);rcx.rotate(-ang*Math.PI/180);rcx.drawImage(cv,-W/2,-H/2);
+      cv=rcv;cx=rcx;
+    }
+    const g=stretchGray(cx.getImageData(0,0,W,H).data,W*H);
+    pMsg('بدوّر على شبكة الجدول...',24);
     const ORD=$('#pFirst').value==='s'?[6,0,1,2,3,4]:[0,1,2,3,4];
-    const cells=r.cells.filter(c=>c.ink>0.012&&c.row<ORD.length&&c.p<=S.periods.length);
-    if(!cells.length){pMsg('ما لقيتش حصص في الجدول. جرّب صورة أوضح.');return}
-    pMsg('بحمّل أداة القراءة (محتاجة نت)...');
+    const gl=findGridLines(g,W,H,ORD.length);
+    if(!gl){pMsg('ما قدرتش أميّز الجدول. قرّب الكاميرا أو جرّب «المسح بالذكاء الاصطناعي» فوق.');return}
+    pMsg('بحمّل محرك القراءة والتعرّف على أسماء الأيام...',32);
     await loadTess();
-    const wk=await Tesseract.createWorker('eng');
-    await wk.setParameters({tessedit_char_whitelist:'0123456789/',tessedit_pageseg_mode:'7'});
+    let layout=$('#pLayout').value,dayMap={};
+    const R=gl.ys.length-1,C=gl.xs.length-1;
+    // قراءة أسماء الأيام تلقائيًا من الحواف لتحديد الجهة والأيام الموجودة فقط (حتى لو أسبوع ناقص أو أيام فاضية)
+    if(layout==='auto'){
+      const wkD=await Tesseract.createWorker('ara+eng');
+      await wkD.setParameters({tessedit_pageseg_mode:'7'});
+      const scanEdge=async(boxes)=>{
+        const mp={};let hits=0;
+        for(const item of boxes){
+          if(inkOf(gl.dk,W,H,item.b)<0.008)continue;
+          const o=await wkD.recognize(prepCellCanvas(cv,item.b,false));
+          const dm=matchDayName(o.data.text);
+          if(dm!==null){mp[item.k]=dm;hits++}
+        }
+        return{mp,hits};
+      };
+      const rightBoxes=Array.from({length:Math.max(0,R-1)},(_,i)=>({k:i+1,b:boxOf(gl.ys,gl.xs,i+1,i+2,C-1,C,W,H)}));
+      const leftBoxes=Array.from({length:Math.max(0,R-1)},(_,i)=>({k:i+1,b:boxOf(gl.ys,gl.xs,i+1,i+2,0,1,W,H)}));
+      const topBoxes=Array.from({length:Math.max(0,C-1)},(_,i)=>({k:i+1,b:boxOf(gl.ys,gl.xs,0,1,i,i+1,W,H)}));
+      const topBoxesR=Array.from({length:Math.max(0,C-1)},(_,i)=>({k:i,b:boxOf(gl.ys,gl.xs,0,1,i,i+1,W,H)}));
+      pMsg('بتعرّف على جهة الجدول وأسماء الأيام...',42);
+      const rR=await scanEdge(rightBoxes);
+      let best={lay:'rr',mp:rR.mp,hits:rR.hits};
+      if(best.hits<2){const rL=await scanEdge(leftBoxes);if(rL.hits>best.hits)best={lay:'rl',mp:rL.mp,hits:rL.hits}}
+      if(best.hits<2){const rT=await scanEdge(topBoxesR);if(rT.hits>best.hits){
+        // تحقق إذا كانت الأيام من اليمين للشمال أم من الشمال لليمين
+        const ks=Object.keys(rT.mp).map(Number).sort((a,b)=>a-b);
+        const firstDay=rT.mp[ks[0]],lastDay=rT.mp[ks[ks.length-1]];
+        const isCR=DAYS.indexOf(firstDay)>DAYS.indexOf(lastDay);
+        best={lay:isCR?'cr':'cl',mp:rT.mp,hits:rT.hits};
+      }}
+      await wkD.terminate();
+      layout=best.lay;dayMap=best.mp;
+    }
+    const allCells=extractCells(gl,W,H,layout,dayMap,ORD);
+    const cells=allCells.filter(c=>c.ink>0.008&&c.p<=S.periods.length);
+    if(!cells.length){pMsg('ما لقيتش حصص مكتوبة جوه الجدول. جرّب تغيير «شكل الجدول» أو تدوير الصورة.');return}
+    const arMode=$('#pMode').value==='ar';
+    const wk=await Tesseract.createWorker(arMode?'ara+eng':'eng');
+    if(!arMode)await wk.setParameters({tessedit_char_whitelist:'0123456789/-\\',tessedit_pageseg_mode:'7'});
+    else await wk.setParameters({tessedit_pageseg_mode:'6'});
     const res=[];
-    for(let i=0;i<cells.length;i++){pMsg('بقرا الحصص '+(i+1)+' من '+cells.length+'...');
-      const c=cells[i],b=c.box,cc=document.createElement('canvas'),sc=3,pd=30;cc.width=b.w*sc+pd*2;cc.height=b.h*sc+pd*2;
-      const x2=cc.getContext('2d');x2.fillStyle='#fff';x2.fillRect(0,0,cc.width,cc.height);x2.filter='grayscale(1) contrast(1.6)';
-      x2.drawImage(cv,b.x,b.y,b.w,b.h,pd,pd,b.w*sc,b.h*sc);
-      const o=await wk.recognize(cc);res.push(Object.assign({},c,{day:ORD[c.row],txt:normName(o.data.text)}))}
-    await wk.terminate();pMsg('');showPreview(res);
-  }catch(err){pMsg(navigator.onLine?'حصلت مشكلة في قراءة الصورة. جرّب صورة أوضح.':'محتاج نت أول مرة عشان أداة القراءة.')}
+    for(let i=0;i<cells.length;i++){
+      pMsg('بقرا الحصة '+(i+1)+' من '+cells.length+'...',46+Math.round((i+1)/cells.length*52));
+      const c=cells[i],b=c.box;
+      let cc=prepCellCanvas(cv,b,false);
+      let o=await wk.recognize(cc);
+      let txt=normName(o.data.text,arMode,o.data.confidence||0);
+      if((!txt.v||txt.chk)&&c.ink>0.015){
+        await wk.setParameters({tessedit_pageseg_mode:'6'});
+        const cc2=prepCellCanvas(cv,b,true);
+        const o2=await wk.recognize(cc2);
+        const t2=normName(o2.data.text,arMode,o2.data.confidence||0);
+        if(t2.v&&(!txt.v||(o2.data.confidence||0)>(o.data.confidence||0)))txt=t2;
+        if(!arMode)await wk.setParameters({tessedit_pageseg_mode:'7'});
+      }
+      res.push(Object.assign({},c,{txt,thumb:makeThumb(cv,b)}));
+    }
+    await wk.terminate();pMsg('');
+    const layTxt={rr:'أيام في صفوف (يمين)',rl:'أيام في صفوف (شمال)',cr:'أيام في أعمدة (يمين←شمال)',cl:'أيام في أعمدة (شمال←يمين)'}[layout]||'';
+    showPreview(res,gl.fallback,'تم التعرف على الجدول ('+layTxt+') — تقدر تعدّل اليوم أو الحصة أو اسم الفصل لأي خانة.');
+  }catch(err){pMsg(navigator.onLine?'حصلت مشكلة في القراءة ('+(err&&err.message||'')+'). اتأكد من الصورة أو مفتاح AI.':'محتاج نت أول مرة عشان تحميل أداة القراءة.')}
   e.target.value='';
 };
 let PV=[];
-function showPreview(res){PV=res;
-  $('#pvList').innerHTML=res.map((c,i)=>'<div class="row" style="margin-bottom:6px"><span style="flex:0 0 112px;font-size:13px">'+esc(dn(c.day))+'<br>حصة '+c.p+(c.n>1?' - '+(c.p+c.n-1):'')+'</span><input data-i="'+i+'" value="'+esc(c.txt.v)+'" style="'+(c.txt.chk?'border-color:#F59E0B;background:var(--gold-soft)':'')+'"></div>').join('');
+function showPreview(res,isFallback,msg){PV=res;
+  $('#pvInfo').textContent=(isFallback?'تقسيم تلقائي · ':'')+(msg||'قارن كل خانة بالصورة المصغّرة جنبها وعدّلها لو لزم.');
+  const dayOpts=sel=>DAYS.map(d=>'<option value="'+d+'"'+(d===sel?' selected':'')+'>'+esc(dn(d))+'</option>').join('');
+  const pOpts=sel=>S.periods.map((_,idx)=>'<option value="'+(idx+1)+'"'+((idx+1)===sel?' selected':'')+'>ح'+(idx+1)+'</option>').join('');
+  $('#pvList').innerHTML=res.map((c,i)=>'<div class="row" data-pvr="'+i+'" style="align-items:center;gap:5px;padding:6px;border-radius:12px;background:var(--glass-soft);border:1px solid '+(c.txt.chk?'#F59E0B':'var(--line)')+'">'
+    +'<select class="pvd" style="flex:0 0 78px;padding:6px 4px;font-size:12px">'+dayOpts(c.day)+'</select>'
+    +'<select class="pvp" style="flex:0 0 54px;padding:6px 2px;font-size:12px">'+pOpts(c.p)+'</select>'
+    +(c.thumb?'<img src="'+c.thumb+'" alt="" style="flex:0 0 56px;width:56px;height:34px;object-fit:contain;border-radius:7px;border:1px solid var(--line);background:#fff">':'')
+    +'<input class="pvn" data-i="'+i+'" value="'+esc(c.txt.v)+'" placeholder="الفصل" style="flex:1;min-width:56px;padding:7px 6px;font-weight:800;text-align:center;'+(c.txt.chk?'border-color:#F59E0B;background:var(--gold-soft)':'')+'">'
+    +'<button type="button" class="hx pvx" aria-label="حذف">✕</button></div>').join('');
+  $('#pvList').onclick=ev=>{const x=ev.target.closest('.pvx');if(x)x.closest('[data-pvr]').remove()};
   $('#pvErr').textContent='';$('#dlgI').close();$('#dlgP').showModal()}
-$('#pvCancel').onclick=()=>$('#dlgP').close();
+$('#pvCancel').onclick=$('#pvCloseTop').onclick=()=>$('#dlgP').close();
 $('#pvOk').onclick=async()=>{
-  const m={};S.classes.forEach(c=>m[c.subject]=(m[c.subject]||0)+1);const subj=Object.keys(m).sort((a,b)=>m[b]-m[a])[0]||'E';
+  const m={};S.classes.forEach(c=>m[c.subject]=(m[c.subject]||0)+1);const defSubj=Object.keys(m).sort((a,b)=>m[b]-m[a])[0]||'E';
   const out=[];let bad=0;
-  $('#pvList').querySelectorAll('input').forEach(inp=>{const c=PV[+inp.dataset.i],name=inp.value.trim();
-    if(!name||c.p+c.n-1>S.periods.length||out.some(x=>x.day===c.day&&x.p<c.p+c.n&&c.p<x.p+x.n)){bad++;return}
-    out.push({id:'p'+Date.now()+out.length,day:c.day,p:c.p,n:c.n,name,subject:subj,sh:S.view||'m'})});
+  $('#pvList').querySelectorAll('[data-pvr]').forEach(row=>{
+    const idx=+row.dataset.pvr,c=PV[idx],day=+row.querySelector('.pvd').value,p=+row.querySelector('.pvp').value,n=c.n||1,name=row.querySelector('.pvn').value.trim();
+    if(!name||p+n-1>S.periods.length||out.some(x=>x.day===day&&x.p<p+n&&p<x.p+x.n)){bad++;return}
+    out.push({id:'p'+Date.now()+out.length,day,p,n,name,subject:c.subj||defSubj,sh:S.view||'m'})});
   if(!out.length){$('#pvErr').textContent='مفيش حصص صالحة.';return}
   const V=S.view||'m';
   if(!(await gConfirm('هيتم استبدال جدول الفترة ('+SHN[V]+') بـ '+out.length+' حصة. موافق؟')))return;
-  S.classes=S.classes.filter(c=>(c.sh||'m')!==V).concat(out);save();$('#dlgP').close();render();if(bad)await gAlert('اتخطّيت '+bad+' خانة فاضية أو مش مظبوطة.')};
+  S.classes=S.classes.filter(c=>(c.sh||'m')!==V).concat(out);save();$('#dlgP').close();render();if(bad)await gAlert('اتخطّيت '+bad+' خانة فاضية أو متعارضة.')};
 
 /* ---- استيراد الجدول من كود + نسخة احتياطية ---- */
 const DNM={'السبت':6,'الأحد':0,'الاحد':0,'الاثنين':1,'الأثنين':1,'الثلاثاء':2,'الأربعاء':3,'الاربعاء':3,'الخميس':4};
@@ -1335,8 +1610,8 @@ const exportCode=()=>JSON.stringify({log:S.log||{},my:S.myCls||[],info:{gov:S.in
 const tNorm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(String(t).trim());return m?pad2(+m[1])+':'+m[2]:null};
 const iMsg=(t,ok)=>{const e=$('#iMsg');e.textContent=t;e.style.color=ok?'#059669':''};
 $('#wImp').onclick=()=>$('#impBtn').click();$('#wSet').onclick=()=>$('#setBtn').click();
-$('#impBtn').onclick=()=>{$('#iCode').value='';$('#iFile').value='';iMsg('');$('#dlgI').showModal()};
-$('#iClose').onclick=()=>$('#dlgI').close();
+$('#impBtn').onclick=()=>{$('#iCode').value='';$('#iFile').value='';$('#pAiKey').value=S.aiKey||'';pMsg('');iMsg('');$('#dlgI').showModal()};
+$('#iClose').onclick=$('#iCloseTop').onclick=()=>$('#dlgI').close();
 $('#iFile').onchange=async e=>{const f=e.target.files[0];if(f){$('#iCode').value=await f.text();iMsg('')}};
 $('#iShow').onclick=async()=>{const c=exportCode();$('#iCode').value=c;let ok=false;try{await navigator.clipboard.writeText(c);ok=true}catch(e){try{$('#iCode').select();ok=document.execCommand('copy')}catch(_){}}iMsg(ok?'اتنسخ الكود. الصقه في أي مكان للاحتفاظ بيه.':'ده كود جدولك. انسخه واحتفظ بيه.',true)};
 $('#iDo').onclick=async()=>{
