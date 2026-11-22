@@ -582,6 +582,13 @@ dialog.full-dlg{
   <div class="err" id="err"></div>
   <div class="acts"><button class="btn" id="saveBtn" type="button">حفظ</button><button class="btn ghost" id="cancelBtn" type="button">إلغاء</button></div>
   <div class="acts"><button class="btn ghost" id="delBtn" type="button" style="color:var(--red)">حذف الحصة</button></div>
+  <div id="fProgWrap" hidden style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px">
+      <b id="fProgTit" style="font-size:14px;color:var(--blue)"></b>
+      <button type="button" class="hb" id="fOpenCls">📚 فصولي</button>
+    </div>
+    <div class="csum" id="fProg" style="margin:0"></div>
+  </div>
 </dialog>
 
 <dialog id="dlgI">
@@ -913,14 +920,54 @@ function fShiftUI(){document.querySelectorAll('#fShift button').forEach(b=>b.cla
   $('#fP').innerHTML=arr.map((q,i)=>`<option value="${i+1}">الحصة ${i+1} (${hm(q.start)})</option>`).join('');if(cur)$('#fP').value=cur;
   const b=(S.brk||{})[fSh]||{s:'',e:''};$('#fB1').value=b.s;$('#fB2').value=b.e;$('#fBL').textContent='('+SHN[fSh]+')'}
 $('#fShift').onclick=e=>{const b=e.target.closest('button');if(b){fSh=b.dataset.sh;fShiftUI()}};
+let formISO='';
+function weekISOForDay(dayNum){
+  const idx=DAYS.indexOf(+dayNum);if(idx<0)return '';
+  const sat=new Date();sat.setHours(0,0,0,0);sat.setDate(sat.getDate()-((sat.getDay()+1)%7)+weekOff*7+idx);
+  return sat.getFullYear()+'-'+pad2(sat.getMonth()+1)+'-'+pad2(sat.getDate());
+}
+function dayLogHTML(cls,iso){
+  if(!cls||!iso)return '';
+  const l=(S.log||{})[cls];if(!l)return '';
+  const row=(ic,lb,tx,col)=>'<div class="sm" style="border-color:'+col+'"><span class="smi">'+ic+'</span><div><b>'+lb+'</b><span class="v">'+tx+'</span></div></div>';
+  const out=[];
+  const L=(l.lesson||[]).find(x=>x&&x.date===iso);
+  const H=(l.hw||[]).find(x=>x&&x.date===iso);
+  const Es=(l.ev||[]).filter(x=>x&&x.date===iso);
+  if(L)out.push(row('📖','الحصة',L.pages?esc(pgT(L.pages)):'تم تسجيل الحصة',TYP.lesson.col));
+  if(H)out.push(row('📝','الواجب',H.pages?esc(pgT(H.pages)):'تم تسجيل الواجب',TYP.hw.col));
+  Es.forEach(E=>out.push(row('📊','تقييم'+(E.n?' رقم '+E.n:''),E.pages?esc(pgT(E.pages)):'تم تسجيل التقييم',TYP.ev.col)));
+  return out.join('');
+}
 function openForm(id,d,p){
   const c=id?S.classes.find(x=>x.id===id):{day:d,p:p,n:1,name:'',subject:'E'};edit=id||null;
   $('#fDay').innerHTML=DAYS.map(x=>`<option value="${x}">${dn(x)}</option>`).join('');
   fSh=id?(c.sh||'m'):(S.view||'m');
   fShiftUI();
   $('#fDay').value=c.day;$('#fP').value=c.p;$('#fN').value=c.n;$('#fName').value=c.name;$('#fSub').value=c.subject;
-  $('#err').textContent='';$('#delBtn').parentElement.hidden=!id;$('#dlg').showModal();
+  formISO=weekISOForDay(c.day);
+  $('#err').textContent='';$('#delBtn').parentElement.hidden=!id;
+  renderFormProg(c.name,formISO);
+  $('#dlg').showModal();
 }
+function renderFormProg(name,iso){
+  const nm=String(name||'').trim(),wrap=$('#fProgWrap');
+  if(!nm){wrap.hidden=true;return}
+  wrap.hidden=false;
+  const dh=dayLogHTML(nm,iso);
+  if(dh){
+    $('#fProgTit').textContent='📅 المسجّل يوم '+fmtD(iso);
+    $('#fProg').innerHTML=dh;
+  }else{
+    $('#fProgTit').textContent='📌 وصلنا لإيه مع فصل '+nm;
+    $('#fProg').innerHTML=clsSummaryHTML(nm);
+  }
+}
+$('#fName').addEventListener('input',()=>renderFormProg($('#fName').value,formISO));
+$('#fOpenCls').onclick=()=>{
+  const nm=$('#fName').value.trim();if(!nm)return;
+  $('#dlg').close();CC=nm;cRender();$('#dlgC').showModal();
+};
 $('#cancelBtn').onclick=()=>$('#dlg').close();
 $('#delBtn').onclick=async()=>{if(await gConfirm('تحذف الحصة دي؟')){S.classes=S.classes.filter(x=>x.id!==edit);save();$('#dlg').close();render()}};
 $('#saveBtn').onclick=()=>{
@@ -1020,14 +1067,14 @@ function evGet(c){const arr=((S.log||{})[c]||{}).ev||[];let ch=false;
   if(ch)save();
   const m=S.evMax||20,out=[];for(let k=1;k<=m;k++)out.push(arr.find(x=>x.n===k)||null);return out}
 function cOpen(){const ns=clsNames();CC=CC&&ns.includes(CC)?CC:(ns[0]||null);cRender();$('#dlgC').showModal()}
-function cSum(){
-  const el=$('#cSum');if(!CC){el.innerHTML='';return}
+function clsSummaryHTML(cls){
+  if(!cls)return '';
   const td=todayISO(),dd=d=>Math.round((new Date(d+'T00:00:00')-new Date(td+'T00:00:00'))/864e5);
   const line=x=>(x.date?fmtD(x.date):'من غير تاريخ')+(x.pages?' · <bdi class="nw">'+esc(pgT(x.pages))+'</bdi>':'');
-  const lastOf=t=>{const e=ents(CC,t).filter(x=>x.date),past=e.filter(x=>x.date<=td);return past[0]||e[0]||null};
+  const lastOf=t=>{const e=ents(cls,t).filter(x=>x.date),past=e.filter(x=>x.date<=td);return past[0]||e[0]||null};
   const row=(ic,lb,tx,col)=>'<div class="sm" style="border-color:'+col+'"><span class="smi">'+ic+'</span><div><b>'+lb+'</b><span class="v">'+tx+'</span></div></div>';
   const L=lastOf('lesson'),H=lastOf('hw');
-  const sl=evGet(CC).map((x,i)=>x&&(x.date||x.pages)?{n:i+1,date:x.date||'',pages:x.pages||''}:null);
+  const sl=evGet(cls).map((x,i)=>x&&(x.date||x.pages)?{n:i+1,date:x.date||'',pages:x.pages||''}:null);
   const rec=sl.filter(Boolean),dated=rec.filter(x=>x.date);
   const lastE=dated.filter(x=>x.date<td).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const up=dated.filter(x=>x.date>=td).sort((a,b)=>a.date.localeCompare(b.date))[0];
@@ -1037,8 +1084,11 @@ function cSum(){
     nx=und?row('📊','أقرب تقييم','تقييم رقم '+und.n+' · '+line(und),TYP.ev.col)
       :emp>=0?row('📊','التقييم الجاي','تقييم رقم '+(emp+1)+' · لسه ما اتحدّدش',TYP.ev.col)
       :row('📊','التقييمات','كل التقييمات خلصت ✓',TYP.ev.col)}
-  el.innerHTML=row('📖','آخر حصة',L?line(L):'لسه ما اتسجّلتش',TYP.lesson.col)+row('📝','آخر واجب',H?line(H):'لسه ما اتسجّلش',TYP.hw.col)
+  return row('📖','آخر حصة',L?line(L):'لسه ما اتسجّلتش',TYP.lesson.col)+row('📝','آخر واجب',H?line(H):'لسه ما اتسجّلش',TYP.hw.col)
     +(lastE?row('✅','آخر تقييم','تقييم رقم '+lastE.n+' · '+line(lastE),TYP.ev.col):'')+nx;
+}
+function cSum(){
+  const el=$('#cSum');el.innerHTML=CC?clsSummaryHTML(CC):'';
 }
 function cRender(){cRender0();cSum()}
 function cRender0(){
