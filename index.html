@@ -662,6 +662,26 @@ table.sheet button.ab{color:#b00000;font-weight:900;font-size:16px}
 .pg.sh .hd .hc .ht,.pg.sh .hd .hc .hk,.pg.sh .hd .hc .hn{font-size:inherit}
 .pg.sh .hd .hr>div,.pg.sh .hd .hc>div{white-space:nowrap;font-weight:900}
 @media print{.pg.sh .hd .hc .ht,.pg.sh .hd .hc .hk,.pg.sh .hd .hc .hn{font-size:inherit}}
+@media print{.pg.mn table.sheet{width:100%;table-layout:fixed}}
+.shw .pg.mn table.sheet{width:max-content}
+.pg.mn table.sheet td.n{text-align:right;padding:0 2px;white-space:nowrap;overflow:hidden}
+@media print{
+  .pg.mn table.sheet{width:100%!important}
+  .pg.mn table.sheet td,.pg.mn table.sheet th{height:var(--rh,6mm);font-size:8px;border:0.3mm solid #000;font-weight:700;color:#000!important;padding:0}
+  .pg.mn table.sheet th.vh{height:20mm}
+  .pg.mn table.sheet td.n{font-size:9px;padding:0 1mm}
+  .pg.mn .vt{font-size:7.5px}
+}
+/* عرض الموبايل: الهيدر والأعمدة (م + الاسم) تفضل ظاهرة وإنت بتحرك الجدول يمين وشمال */
+.shw table.sheet tr>td:nth-child(1),.shw table.sheet tr:first-child>th:nth-child(1){position:sticky;right:0;z-index:2;box-shadow:0 0 0 1px #000}
+.shw table.sheet tr>td:nth-child(2),.shw table.sheet tr:first-child>th:nth-child(2){position:sticky;right:22px;z-index:2;box-shadow:-3px 0 4px -1px rgba(0,0,0,.35),0 0 0 1px #000}
+.shw table.sheet tr:first-child>th:nth-child(1),.shw table.sheet tr:first-child>th:nth-child(2){background:#FFFFE0}
+@media screen and (max-width:600px){
+  .shw table.sheet col:nth-child(2){width:112px!important}
+  .shw table.sheet td.n{font-size:11px;padding:0 4px;text-overflow:ellipsis}
+  .shw table.sheet tr>td:nth-child(2),.shw table.sheet tr:first-child>th:nth-child(2){right:22px}
+}
+table.sheet th.gy,.pg.sh table.sheet th.gy{background:#C9C9C9!important}
 
 </style>
 </head>
@@ -861,6 +881,8 @@ table.sheet button.ab{color:#b00000;font-weight:900;font-size:16px}
     </div>
     <label class="chk"><input type="checkbox" id="fSnd"> صوت تنبيه</label>
     <label class="chk"><input type="checkbox" id="fVc"> إعلان صوتي بالكلام</label>
+    <label class="chk"><input type="checkbox" id="fEnd"> نبّهني قبل نهاية آخر حصة في اليوم (لو مفيش حصة بعدها)</label>
+    <div class="dlg-grid2"><div><label>قبل نهاية آخر حصة بـ (دقائق)</label><input type="number" id="fEndL" min="1" max="30"></div><button class="btn alt" id="testEnd" type="button" style="width:100%;align-self:end">جرّب تنبيه آخر حصة</button></div>
     <label class="chk"><input type="checkbox" id="fPin"> ثبّت إشعار الحصة الحالية طول اليوم الدراسي</label>
     <div class="dlg-grid2" style="margin-top:8px">
       <button class="btn alt" id="testBtn" type="button" style="width:100%">جرّب التنبيه الآن</button>
@@ -920,6 +942,7 @@ function schedNat(now){if(!NAT)return;clearTimeout(schedT);schedT=setTimeout(()=
   if(NAT.perm()!=='granted'){NAT.schedule('[]');return}
   const lead=S.lead||5,out=[];
   S.classes.forEach(c=>{try{const m=mins(st(c))-lead;if(m>=0&&m<1440)out.push([c.day,m,'باقي '+mw(lead)+' على الحصة','فصل '+c.name+' - '+c.subject+' | '+hmf(st(c)),'cls'+c.id])}catch(e){}});
+  for(let d=0;d<7;d++){const lc=lastCls(d);if(lc){const it=endItem(lc);if(it)out.push(it)}}
   NAT.schedule(JSON.stringify(out))}catch(e){}},now===true?0:1500)}
 let S={log:{},myCls:[],cmap:{},info:{gov:'',dir:'',admin:'',school:'',teacher:''},
   periodsX:Array.from({length:9},(_,i)=>{const f=m=>pad2(Math.floor(m/60))+':'+pad2(m%60),a=420+i*60;return{start:f(a),end:f(a+50)}}),
@@ -980,6 +1003,10 @@ const hm=t=>{const[h,m]=t.split(':').map(Number);return(h%12||12)+':'+String(m).
 const hmf=t=>hm(t)+(+t.split(':')[0]<12?' ص':' م');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const byDay=d=>S.classes.filter(c=>c.day===d).sort((a,b)=>a.p-b.p);
+/* آخر حصة في اليوم = الحصة اللي بتخلص أخر حاجة ومفيش حصة تانية بتبدأ بعد نهايتها (الفسحات مش بتفرق) */
+const endLead=()=>Math.min(30,Math.max(1,+S.endLead||5));
+function lastCls(d){const a=byDay(d);if(!a.length)return null;let b=a[0];a.forEach(c=>{if(mins(en(c))>mins(en(b))||(mins(en(c))===mins(en(b))&&mins(st(c))>mins(st(b))))b=c});return b}
+function endItem(c){const L=endLead(),m=mins(en(c))-L;if(S.endAlert===false||m<=mins(st(c))||m<0||m>=1440)return null;return[c.day,m,'باقي '+mw(L)+' على نهاية آخر حصة','فصل '+c.name+' - '+c.subject+' | تنتهي '+hmf(en(c)),'end'+c.id]}
 const sy=()=>{const n=new Date();return n.getMonth()>=6?n.getFullYear():n.getFullYear()-1};
 const defFrom=()=>sy()+'-09-01';
 const defUntil=()=>(sy()+1)+'-06-30';
@@ -1225,7 +1252,7 @@ $('#saveBtn').onclick=()=>{
 
 $('#setBtn').onclick=()=>{const i=S.info;
   $('#iGov').value=i.gov;$('#iDir').value=i.dir||'';$('#iAdm').value=i.admin;$('#iSch').value=i.school;$('#iTea').value=i.teacher;
-  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fSync').value=S.syncUrl||'';syncShow();$('#fEv').value=S.evMax||20;$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#fPin').checked=!!S.pin;$('#err2').textContent='';
+  $('#fFrom').value=S.from||defFrom();$('#fUntil').value=S.until||defUntil();$('#fSync').value=S.syncUrl||'';syncShow();$('#fEv').value=S.evMax||20;$('#fLead').value=S.lead;$('#fSnd').checked=S.sound;$('#fVc').checked=S.voice;$('#fPin').checked=!!S.pin;$('#fEnd').checked=S.endAlert!==false;$('#fEndL').value=endLead();$('#err2').textContent='';
   const rows=(a,sk,ek)=>a.map((p,k)=>`<div class="row" style="margin-bottom:6px"><span>حصة ${k+1}</span><input type="time" data-${sk}="${k}" value="${p.start}"><input type="time" data-${ek}="${k}" value="${p.end}"></div>`).join('');
   $('#pRows').innerHTML='<b style="color:var(--blue)">☀️ الفترة الصباحية</b>'+rows(S.periods,'s','e')+'<b style="color:#EA580C;display:block;margin:10px 0 4px">🌤️ الفترة الممتدة</b>'+rows(S.periodsX,'xs','xe')+'<b style="color:#8B5CF6;display:block;margin:10px 0 4px">🌙 الفترة المسائية</b>'+rows(S.periodsE,'es','ee')
     +'<b style="color:#D97706;display:block;margin:14px 0 4px">☕ الفسحة</b>'+['m','x','e'].map(k=>'<div class="row" style="margin-bottom:6px"><span>'+SI[k]+' '+SHN[k]+'</span><input type="time" data-bs="'+k+'" value="'+((S.brk[k]||{}).s||'')+'"><input type="time" data-be="'+k+'" value="'+((S.brk[k]||{}).e||'')+'"></div>').join('');
@@ -1236,10 +1263,11 @@ $('#sSave').onclick=()=>{
   const np=rd(S.periods,'s','e'),ne=rd(S.periodsE,'es','ee'),nx=rd(S.periodsX,'xs','xe');
   for(const [arr,nm] of [[np,'الصباحي'],[nx,'الممتد'],[ne,'المسائي']])for(let k=0;k<arr.length;k++)if(!arr[k].start||!arr[k].end||mins(arr[k].end)<=mins(arr[k].start)){$('#err2').textContent='راجع مواعيد الحصة '+(k+1)+' ('+nm+'): النهاية لازم تكون بعد البداية.';return}
   S.info=Object.assign({},S.info,{gov:$('#iGov').value.trim(),dir:$('#iDir').value.trim(),admin:$('#iAdm').value.trim(),school:$('#iSch').value.trim()||'جدول الحصص',teacher:$('#iTea').value.trim()});
-  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.syncUrl=$('#fSync').value.trim();S.evMax=Math.min(60,Math.max(1,+$('#fEv').value||20));S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.pin=$('#fPin').checked;pinLast='';if(S.pin&&'Notification' in window&&Notification.permission!=='granted'){unlock();Notification.requestPermission().then(render)}if(!S.pin)pinOff();const nb={};for(const k of ['m','x','e']){const a=$('[data-bs="'+k+'"]').value,z=$('[data-be="'+k+'"]').value;
+  S.from=$('#fFrom').value||defFrom();S.until=$('#fUntil').value||defUntil();S.syncUrl=$('#fSync').value.trim();S.evMax=Math.min(60,Math.max(1,+$('#fEv').value||20));S.lead=Math.min(60,Math.max(1,+$('#fLead').value||5));S.sound=$('#fSnd').checked;S.voice=$('#fVc').checked;S.pin=$('#fPin').checked;S.endAlert=$('#fEnd').checked;S.endLead=Math.min(30,Math.max(1,+$('#fEndL').value||5));pinLast='';if(S.pin&&'Notification' in window&&Notification.permission!=='granted'){unlock();Notification.requestPermission().then(render)}if(!S.pin)pinOff();const nb={};for(const k of ['m','x','e']){const a=$('[data-bs="'+k+'"]').value,z=$('[data-be="'+k+'"]').value;
     if((a&&!z)||(!a&&z)||(a&&mins(z)<=mins(a))){$('#err2').textContent='راجع الفسحة ('+SHN[k]+'): اكتب بداية ونهاية صح أو سيبهم فاضيين.';return}nb[k]={s:a,e:z}}
   S.brk=nb;S.periods=np;S.periodsE=ne;S.periodsX=nx;
   save();$('#dlg2').close();render()};
+$('#testEnd').onclick=()=>{unlock();alertEnd(S.classes[0]||{name:'7/2',subject:'E',p:1,n:1,day:0},endLead())};
 $('#testBtn').onclick=()=>{unlock();alertClass(S.classes[0]||{name:'7/2',subject:'E',p:1,n:1},S.lead)};
 
 /* ---- التنبيهات: صوت + كلام + إشعار + رسالة على الشاشة ---- */
@@ -1260,6 +1288,17 @@ async function alertClass(c,mm){
   if('Notification' in window&&Notification.permission==='granted'){
     try{const r=await swReg();
       if(r)await r.showNotification(title,{body,icon:'icon-192.png',vibrate:[300,150,300],tag:'cls'+c.id,renotify:true,requireInteraction:true,lang:'ar',dir:'rtl'});
+      else new Notification(title,{body})}catch(e){try{new Notification(title,{body})}catch(_){}}}
+}
+async function alertEnd(c,mm){
+  const title='باقي '+mw(mm)+' على نهاية آخر حصة',body='فصل '+c.name+' - '+c.subject+' | تنتهي '+hmf(en(c));
+  toast('<b>'+title+'</b><br>'+esc(body));
+  if(S.sound)beep();
+  if(S.voice)setTimeout(()=>speak('باقي '+mw(mm)+' على نهاية آخر حصة، فصل '+c.name.replace('/',' ')),S.sound?1400:0);
+  try{navigator.vibrate&&navigator.vibrate([300,150,300,150,300])}catch(e){}
+  if('Notification' in window&&Notification.permission==='granted'){
+    try{const r=await swReg();
+      if(r)await r.showNotification(title,{body,icon:'icon-192.png',vibrate:[300,150,300],tag:'end'+c.id,renotify:true,requireInteraction:true,lang:'ar',dir:'rtl'});
       else new Notification(title,{body})}catch(e){try{new Notification(title,{body})}catch(_){}}}
 }
 /* ---- إشعار ثابت بالحصة الحالية ---- */
@@ -1286,6 +1325,8 @@ function tick(){
   let dirty=false;
   byDay(n.getDay()).forEach(c=>{const diff=mins(st(c))-nm,k=ds+c.id;
     if(diff>0&&diff<=S.lead&&!S.notified[k]){S.notified[k]=1;dirty=true;alertClass(c,Math.min(S.lead,Math.ceil(diff)))}});
+  if(S.endAlert!==false){const lc=lastCls(n.getDay());if(lc){const L=endLead(),diff=mins(en(lc))-nm,k=ds+'e'+lc.id;
+    if(mins(en(lc))-L>mins(st(lc))&&diff>0&&diff<=L&&!S.notified[k]){S.notified[k]=1;dirty=true;alertEnd(lc,Math.min(L,Math.ceil(diff)))}}}
   Object.keys(S.notified).forEach(k=>{if(!k.startsWith(ds)){delete S.notified[k];dirty=true}});
   if(dirty)save();
 }
@@ -1406,6 +1447,7 @@ function nsRender(){
    +row(o.exact,'المنبّه الدقيق','لو مش مسموح، التنبيه ممكن يتأخر كام دقيقة.','سمح بالمنبّه الدقيق','nsB2')
    +row(o.battery,'استثناء البطارية','من غيره بعض الموبايلات بتأجّل أو تقتل التنبيه لما التطبيق مقفول.','اسمح بدون قيود','nsB3')
    +'<div class="wst"><div class="wh"><b>منبّه مضمون (أقوى)</b><label class="chk" style="margin:0"><input type="checkbox" id="nsClk"'+(o.clock?' checked':'')+'> شغّال</label></div><p class="note" style="margin:0">بيعمل أيقونة منبّه صغيرة في شريط الحالة، بس ده أكتر نظام بيوصل في ميعاده حتى في وضع توفير الطاقة.</p></div>'
+   +info('تنبيه آخر حصة',endStatus())
    +info('عدد الحصص في الجدول',o.classes||0)
    +info('تنبيهات متجدولة (14 يوم)',o.upcoming||0)
    +info('أقرب تنبيه',o.next?nsTime(o.next)+'<br><small>'+eh2(o.nextTitle||'')+'</small>':'مفيش')
@@ -1424,6 +1466,10 @@ function nsRender(){
   g('nsT2').onclick=()=>{NAT.testIn(60);toast('<b>اتجدولت تجربة بعد دقيقة</b><br>اقفل التطبيق (الرئيسية) واستنى. المفروض يظهر إشعار «تجربة التنبيه نجحت».');nsRender()};
   g('nsAuto').onclick=()=>NAT.autostart();
 }
+function endStatus(){if(S.endAlert===false)return'مقفول (من الإعدادات)';const n=new Date();let t='شغّال، قبل النهاية بـ '+endLead()+' د';
+  for(let k=0;k<7;k++){const d=(n.getDay()+k)%7,lc=lastCls(d);if(!lc)continue;const m=mins(en(lc))-endLead();if(k===0&&m<=n.getHours()*60+n.getMinutes())continue;
+    return t+'<br><small>الجاي: '+['الأحد','الإثنين','التلات','الأربع','الخميس','الجمعة','السبت'][d]+' '+hmf(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'))+' (فصل '+eh2(lc.name)+')</small>'}
+  return t+'<br><small>مفيش حصص</small>'}
 const eh2=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function nsOpen(){nsRender();$('#dlgNS').showModal()}
 $('#nsClose').onclick=()=>$('#dlgNS').close();
@@ -2018,13 +2064,48 @@ function vSheet(r,kind){
   if(!r.start)return'<div class="rn" style="font-size:15px;line-height:2">📅 اختار تاريخ بداية أول أسبوع في السنة، وكل الأسابيع (لحد آخر يونيو) هتتحسب منه، وتقدر تعلّم إجازة نص السنة بعدها.</div><div class="rrow"><input type="date" id="stD" value="" style="flex:1;font:inherit;padding:10px;border:1px solid #888;border-radius:10px"></div>';
   const B=blockCals(r,RT),TC=termCalsAll(r);RB=Math.min(Math.max(RB,0),B.length-1);
   const D=TD();let h='<div class="rrow" id="rTerm"><button class="btn '+(RT===1?'':'ghost')+'" data-a="term1">الترم الأول ('+TC[0].length+' أسبوع)</button><button class="btn '+(RT===2?'':'ghost')+'" data-a="term2">الترم الثاني ('+TC[1].length+' أسبوع)</button></div><div class="rn" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">آخر أسبوع في الترم الأول فيه يوم <input type="date" id="tE1" value="'+D.e1+'" style="font:inherit;padding:3px;border:1px solid #888;border-radius:8px"> وأول أسبوع في الترم الثاني فيه يوم <input type="date" id="tS2" value="'+D.s2+'" style="font:inherit;padding:3px;border:1px solid #888;border-radius:8px"> وآخر أسبوع في الترم الثاني فيه يوم (فاضي = آخر السنة 30 يونيو) <input type="date" id="tE2" value="'+(D.e2||'')+'" style="font:inherit;padding:3px;border:1px solid #888;border-radius:8px"></div><div class="rwk"><button data-a="prev">‹ السابق</button><div class="mid">الترم '+TNAME[RT]+' - الصفحة '+(RB+1)+' من '+B.length+'<br><small style="color:var(--mute)">'+(kind==='att'?'سجل الغياب':'سجل الدرجات')+'</small></div><button data-a="next">التالي ›</button></div>'
-   +'<div class="rrow"><button class="btn ghost" data-a="zo">−</button><button class="btn ghost" data-a="zi">＋</button><button class="btn ghost" data-a="vacp">⏸ الإجازات</button><button class="btn alt" data-a="print">🖨 طباعة</button></div><div class="rrow"><button class="btn" data-a="pdf1">📄 PDF الترم الأول</button><button class="btn" data-a="pdf2">📄 PDF الترم الثاني</button></div><div class="rn" id="rPdfMsg"></div>'
+   +'<div class="rrow"><button class="btn ghost" data-a="zo">−</button><button class="btn ghost" data-a="zi">＋</button><button class="btn ghost" data-a="vacp">⏸ الإجازات</button><button class="btn alt" data-a="print">🖨 طباعة</button></div><div class="rrow"><button class="btn alt" data-a="printP">🖨 الصفحة دي بس</button><button class="btn" data-a="pdfP">📄 PDF الصفحة دي بس</button></div><div class="rrow"><button class="btn" data-a="pdf1">📄 PDF الترم الأول</button><button class="btn" data-a="pdf2">📄 PDF الترم الثاني</button></div><div class="rn" id="rPdfMsg"></div>'
    +'<div class="rrow"><label style="display:flex;gap:8px;align-items:center;font-weight:800;font-size:13px"><input type="checkbox" id="rTot" '+(r.tot?'checked':'')+'> تشغيل المجاميع والمتوسطات (اختياري)</label></div>';
   if(VP){h+='<div class="rn" style="margin-bottom:0">علّم الأسبوع اللي عايزه إجازة، والتواريخ اللي بعده بتتحرك:</div><div class="rrow" style="gap:6px">'+Array.from({length:lastCal(r)+2},(_,c)=>{const a=wkDates(r,c);return'<label style="border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:12px"><input type="checkbox" data-vc="'+c+'" '+(r.vac.includes(c)?'checked':'')+'> '+sd(a[0])+'-'+sd(a[5])+'</label>'}).join('')+'</div>'}
   h+='<div class="rn" style="display:flex;align-items:center;gap:8px;margin:4px 6px">📅 تاريخ بداية أول أسبوع (كل الأسابيع بتتظبط منه): <input type="date" id="stD" value="'+eh(R(RC).start)+'" style="font:inherit;padding:4px;border:1px solid #888;border-radius:8px"><button type="button" class="btn ghost" data-a="wkreset" style="padding:4px 10px">↺ رجّع ترقيم الأسابيع</button></div><div class="shw"><div class="shz" style="zoom:'+SZ+'">'+sheet(kind,B[RB],true,RB===B.length-1,RT)+'</div></div>';
   h+='<div class="rn">دوس على الخانة للكتابة. في الغياب: <b>غ</b> = بدون عذر، <b>ع</b> = بعذر، ودوسة كمان = فاضي. الورقة هنا هي نفسها اللي بتتطبع.</div>';
   return h}
 const vAtt=r=>vSheet(r,'att'),vGr=r=>vSheet(r,'gr');
+/* ---- ورقة إجمالي متوسطات الشهور (آخر كل ترم) ---- */
+const MNAME=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+function hdrHtml(r,t,T,k2,d2){const att=false;return'<div class="hd"><div class="hr"><div'+fz(S.info.gov,16,300)+'>'+eh(S.info.gov||'')+'</div><div'+fz(S.info.admin,16,300)+'>'+eh(S.info.admin||'')+'</div><div'+fz(S.info.school,20,300)+'>'+eh(S.info.school||'')+'</div></div><div class="hc"><div class="ht"'+fz(TERMTXT(r,t),17,290)+'>'+T('term'+t,'الفصل الدراسي '+TNAME[t])+'</div><div class="hk"'+fz(d2,19,290)+'>'+T(k2,d2)+'</div><div class="hn"'+fz('فصل '+RC,17,290)+'>'+T('hd_cls','فصل '+RC)+'</div></div><div class="hl"><img src="'+(S.recLogo||DEFLOGO)+'" alt=""></div></div>'}
+function monData(r,t){const cals=termCals(r,t),ms=[],byM={};cals.forEach(c=>{const s0=wkInfo(r,c).s,key=s0.getFullYear()*12+s0.getMonth();if(!byM[key]){byM[key]={y:s0.getFullYear(),m:s0.getMonth(),w:[]};ms.push(byM[key])}byM[key].w.push(wkInfo(r,c).w)});return ms}
+const mAvg=a=>{a=a.filter(v=>v!=null);return a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10:null};
+const MON_K=[0,1,2,3],MON_L=['واجب منزلى','كراسة الحصة','تقييم أسبوعى','حضور و مواظبة'];
+function monSheet(r,edit,t){t=t||RT||1;
+  const T=(k,d)=>{const v=r.lbl[k]!=null?r.lbl[k]:d;return edit?'<span class="ed" contenteditable="true" data-lbl="'+k+'" data-o="'+eh(v)+'">'+eh(v)+'</span>':eh(v)};
+  const ms=monData(r,t),mxv=k=>r.mx[k]!=null?r.mx[k]:COLS[k][1],EX=t===2?(r.ex2||{}):(r.ex||{});
+  let cg='<colgroup><col style="width:22px"><col style="width:170px">'+'<col style="width:17px">'.repeat((ms.length+1)*4)+'<col style="width:20px"><col style="width:20px"><col style="width:20px"><col style="width:24px"></colgroup>';
+  let h1='<tr><th rowspan="4">'+T('no','م')+'</th><th rowspan="4" style="font-size:15px">'+T('nmh','الاســــــم')+'</th>';
+  ms.forEach(m=>{h1+='<th colspan="4">'+T('mon'+t+'_'+m.m,'شهر '+MNAME[m.m]+' '+m.y)+'</th>'});
+  h1+='<th colspan="4">'+T('mon_tot','اجمالى متوسطات الشهور')+'</th><th rowspan="3" class="vh"><div class="vt">'+T('mon_e1','اختبار الشهر الأول')+'</div></th><th rowspan="3" class="vh"><div class="vt">'+T('mon_e2','اختبار الشهر الثانى')+'</div></th><th rowspan="3" class="vh"><div class="vt">'+T('mon_ea','متوسط الشهرين')+'</div></th><th rowspan="3" class="vh"><div class="vt">'+T('mon_sum','المجموع')+'</div></th></tr>';
+  const G=ms.length+1;
+  let h2='<tr>'+Array.from({length:G},()=>'<th colspan="3">'+T('mon_jw','جوانب التقييم')+'</th><th rowspan="2" class="vh"><div class="vt">'+T('mon_c3','حضور و مواظبة')+'</div></th>').join('')+'</tr>';
+  let h3='<tr>'+Array.from({length:G},()=>[0,1,2].map(i=>'<th class="vh gy"><div class="vt">'+T('mon_c'+(i),MON_L[i])+'</div></th>').join('')).join('')+'</tr>';
+  let h4='<tr>'+Array.from({length:G},()=>MON_K.map((k,i)=>'<th'+(i<3?' class="gy"':'')+'>'+mxv(k)+'</th>').join('')).join('')+'<th>15</th><th>15</th><th>15</th><th>'+(MON_K.reduce((a,k)=>a+mxv(k),0)+15)+'</th></tr>';
+  let rows='';
+  let NR=0;r.names.forEach((n,i)=>{if(n)NR=i+1});NR=ROWS;
+  for(let x=0;x<NR;x++){
+    let c='<tr><td class="no">'+(x+1)+'</td><td class="n">'+eh(r.names[x]||'')+'</td>';
+    const has=!!r.names[x],mv=ms.map(m=>MON_K.map(k=>has?mAvg(m.w.map(w=>{const g=r.gr[x+'|'+w]||[];return num(g[k])})):null));
+    mv.forEach(a=>a.forEach(v=>{c+='<td class="tt">'+(v==null?'':v)+'</td>'}));
+    const tv=[];MON_K.forEach((k,i)=>{const v=has?mAvg(mv.map(a=>a[i])):null;tv.push(v);c+='<td class="tt">'+(v==null?'':v)+'</td>'});
+    const e=EX[x]||[],e1=num(e[0]),e2=num(e[1]),ea=has?mAvg([e1,e2]):null;
+    c+='<td class="tt">'+(has&&e1!=null?e1:'')+'</td><td class="tt">'+(has&&e2!=null?e2:'')+'</td><td class="tt">'+(ea==null?'':ea)+'</td><td class="tt">'+(has&&(tv.some(v=>v!=null)||ea!=null)?Math.round((tv.reduce((a,v)=>a+(v||0),0)+(ea||0))*10)/10:'')+'</td></tr>';rows+=c}
+  return'<div class="pg sh mn" style="--rh:'+4.3+'mm">'+hdrHtml(r,t,T,'mon_title','إجمالى متوسطات الشهور')+'<table class="sheet">'+cg+h1+h2+h3+h4+rows+'</table><div class="sg"><span>'+T('sg0','معلم المادة')+'</span><span>'+T('sg1','موجه المادة')+'</span><span>'+T('sg2','مدير المدرسة')+'</span></div></div>'}
+function vMon(r){
+  if(!r.start)return'<div class="rn" style="font-size:15px;line-height:2">📅 اختار تاريخ بداية أول أسبوع من تبويب الغياب أو الدرجات الأول.</div>';
+  const TC=termCalsAll(r);
+  return'<div class="rrow" id="rTerm"><button class="btn '+(RT===1?'':'ghost')+'" data-a="term1">الترم الأول</button><button class="btn '+(RT===2?'':'ghost')+'" data-a="term2">الترم الثاني</button></div>'
+   +'<div class="rn">متوسطات الشهور بتتحسب لوحدها من درجات الأسابيع (الغياب والدرجات)، وكل أسبوع بيتحسب على الشهر اللي بيبدأ فيه. الاختبارات بتتاخد من خانات الاختبار في ورقة الدرجات.</div>'
+   +'<div class="rrow"><button class="btn ghost" data-a="zo">−</button><button class="btn ghost" data-a="zi">＋</button><button class="btn alt" data-a="print">🖨 طباعة</button><button class="btn" data-a="pdf">📄 حفظ PDF (الترم '+TNAME[RT]+')</button></div><div class="rn" id="rPdfMsg"></div>'
+   +'<div class="shw"><div class="shz" style="zoom:'+SZ+'">'+monSheet(r,true,RT)+'</div></div>'}
+
 function vSum(r){RV='gr';return vGr(r)}
 const LB=(r,k,d,e)=>{const v=r.lbl[k]!=null?r.lbl[k]:d;return e?'<span class="ed" contenteditable="true" data-lbl="'+k+'" data-o="'+eh(v)+'">'+eh(v)+'</span>':eh(v)};
 const WHD=['م','الاسم','الفصل','أسباب الضعف','توقيع ولي الأمر'],QHD=['م','كود الطالب','اسم الطالب','الصف','تليفون ولي الأمر','المستوى','إجراءات المعالجة','تاريخ بدء المعالجة','ملاحظات'];
@@ -2041,13 +2122,13 @@ function vR26(r){
    +'<td><select data-q="'+x+'" data-f="proc"><option></option><option'+(w.proc==='جاري'?' selected':'')+'>جاري</option><option'+(w.proc==='ليس بعد'?' selected':'')+'>ليس بعد</option></select></td>'
    +'<td><input type="date" data-q="'+x+'" data-f="st" value="'+eh(w.st)+'"></td><td><input class="tx" data-q="'+x+'" data-f="nt" value="'+eh(w.nt)+'"></td></tr>'});
   return h+'</table></div>'}
-const TABS=[['home','📖 الدروس والواجب'],['names','الأسماء'],['att','الغياب'],['gr','الدرجات'],['weak','الضعاف'],['r26','26 قرائية']];
+const TABS=[['home','📖 الدروس والواجب'],['names','الأسماء'],['att','الغياب'],['gr','الدرجات'],['mon','متوسطات الشهور'],['weak','الضعاف'],['r26','26 قرائية']];
 let RMODE=false;const ND={};
 function rShow(on){RMODE=on;$('#rWrap').hidden=!on;$('#cMain').hidden=on}
 function rRender(){const r=R(RC);
   $('#rT').textContent='📋 فصل '+RC;
   $('#rTab').innerHTML=TABS.map(t=>'<button type="button" data-v="'+t[0]+'" class="'+(RV===t[0]?'on':'')+'">'+t[1]+'</button>').join('');
-  const mp={names:vNames,att:vAtt,gr:vGr,sum:vSum,weak:vWeak,r26:vR26};
+  const mp={names:vNames,att:vAtt,gr:vGr,mon:vMon,sum:vSum,weak:vWeak,r26:vR26};
   const keep=$('#rBody').scrollTop;const _rv=RV;$('#rBody').innerHTML=(r.names.length||RV==='names'||RV==='weak'||RV==='r26'?mp[RV](r):'<div class="rn" style="text-align:center;padding:24px">ضيف أسماء الطلاب الأول من تبويب «الأسماء».</div>');$('#rBody').scrollTop=keep;
   if(RV==='names'&&$('#rNames')&&ND[RC]!=null){$('#rNames').value=ND[RC];const m=$('#rMsg');if(m)m.textContent='فيه أسماء كنت كاتبها ومش محفوظة. دوس «حفظ الأسماء» عشان تتحفظ.'}}
 let RVH=[];
@@ -2086,7 +2167,7 @@ function bind(){
       if(hasData(r)&&!confirm('هرتب الأسماء: الأولاد الأول وبعدهم البنات، وكل مجموعة أبجدي من الألف للياء، والغياب والدرجات بتنتقل مع كل طالب. أكمل؟'))return;
       sortSaved(r);$('#rMsg').textContent='اتترتبوا: أولاد ثم بنات، أبجدي ('+r.names.length+' طالب).';rRender()}
     else if(a==='addW'||a==='addQ')addPop(a==='addW'?'weak':'r26');
-    else if(a==='print')doPrint(RV,RT);else if(a==='pdf1')exportPdf(RV,1);else if(a==='pdf2')exportPdf(RV,2);else if(a==='pdf')exportPdf(RV)};
+    else if(a==='printP')doPrint(RV,RT,RB);else if(a==='pdfP')exportPdf(RV,RT,RB);else if(a==='print')doPrint(RV,RT);else if(a==='pdf1')exportPdf(RV,1);else if(a==='pdf2')exportPdf(RV,2);else if(a==='pdf')exportPdf(RV)};
   $('#rBody').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.isContentEditable){e.preventDefault();e.target.blur()}});
   $('#rBody').addEventListener('focusout',e=>{const t=e.target,r=R(RC);if(!t.isContentEditable)return;const v=t.textContent.replace(/\s+/g,' ').trim();
     if(t.dataset.nm!==undefined){const x=+t.dataset.nm;while(r.names.length<=x)r.names.push('');r.names[x]=v;while(r.names.length&&!r.names[r.names.length-1])r.names.pop();save();return}
@@ -2218,17 +2299,19 @@ function wkPop(c){const r=R(RC),i=wkInfo(r,c),att=RV==='att';const cur=i.w+i.off
     save()}catch(e){console.error(e)}rRender()}}
 document.addEventListener('click',e=>{const b=e.target.closest('.wka');if(b)wkPop(+b.dataset.wp)});
 /* ---- الطباعة: نفس الورقة ---- */
-function buildPrint(v,r,t){t=t||RT||1;
+function buildPrint(v,r,t,only){t=t||RT||1;
   let h='';
-  if(v==='att'||v==='gr'||v==='sum'){const kind=v==='att'?'att':'gr',B=blockCals(r,t);B.forEach((bl,i)=>{h+=sheet(kind,bl,false,i===B.length-1,t)})}
+  if(v==='mon')h=monSheet(r,false,t);
+  else if(v==='att'||v==='gr'||v==='sum'||v==='mon'){const kind=v==='att'?'att':'gr',B=blockCals(r,t);if(only!=null){const i=Math.min(Math.max(0,only),B.length-1);h=sheet(kind,B[i],false,i===B.length-1,t)}else{B.forEach((bl,i)=>{h+=sheet(kind,bl,false,i===B.length-1,t)});if(kind==='gr')h+=monSheet(r,false,t)}}
   else if(v==='weak')h='<div class="pg l"><h2>'+LB(r,'wT','الطلاب الضعاف')+'</h2><table class="pt"><tr>'+WHD.map((d,i)=>'<th>'+LB(r,'w'+i,d)+'</th>').join('')+'</tr>'+Array.from({length:26},(_,x)=>{const w=r.weak[x]||{};return'<tr><td>'+(x+1)+'</td><td>'+eh(w.n)+'</td><td>'+eh(w.c)+'</td><td>'+eh(w.cause)+'</td><td>'+eh(w.sg)+'</td></tr>'}).join('')+'</table><div class="sg"><span>'+LB(r,'wS0','معلم الفصل')+'</span><span>'+LB(r,'wS1','يعتمد مدير المدرسة')+'</span></div></div>';
   else h='<div class="pg l"><h2>'+LB(r,'qT','سجل 26 قرائية')+' '+(r.cnt?'(عدد الطلبة '+eh(r.cnt)+')':'')+'</h2><table class="pt"><tr>'+QHD.map((d,i)=>'<th>'+LB(r,'q'+i,d)+'</th>').join('')+'</tr>'+Array.from({length:30},(_,x)=>{const w=r.r26[x]||{};return'<tr><td>'+(x+1)+'</td><td>'+eh(w.code)+'</td><td>'+eh(w.name)+'</td><td>'+eh(w.grade)+'</td><td>'+eh(w.phone)+'</td><td>'+eh(w.lvl)+'</td><td>'+eh(w.proc)+'</td><td>'+eh(w.st)+'</td><td>'+eh(w.nt)+'</td></tr>'}).join('')+'</table></div>';
   return h}
-function doPrint(v,t){const r=R(RC);if((v==='att'||v==='gr'||v==='sum')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}if(v!=='att'&&v!=='gr'&&v!=='sum'){if(v!=='weak'&&v!=='r26'){gAlert('اختار الغياب أو الدرجات أو الضعاف أو 26 قرائية للطباعة.');return}}
-  const h=buildPrint(v,r,t);
+function doPrint(v,t,only){const r=R(RC);if((v==='att'||v==='gr'||v==='sum'||v==='mon')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}if(v!=='att'&&v!=='gr'&&v!=='sum'&&v!=='mon'){if(v!=='weak'&&v!=='r26'){gAlert('اختار الغياب أو الدرجات أو الضعاف أو 26 قرائية للطباعة.');return}}
+  const h=buildPrint(v,r,t,only);
   $('#printArea').innerHTML=h;document.body.classList.add('rprint');document.body.classList.toggle('rland',v==='weak'||v==='r26');
-  const done=()=>{document.body.classList.remove('rprint');window.removeEventListener('afterprint',done)};window.addEventListener('afterprint',done);
-  setTimeout(()=>window.print(),150)}
+  const done=()=>{document.body.classList.remove('rprint');window.removeEventListener('afterprint',done)};
+  if(window.AndroidSave&&AndroidSave.printDoc){window.__printDone=()=>{document.body.classList.remove('rprint');window.__printDone=null};setTimeout(()=>{try{AndroidSave.printDoc('سجلات-فصل-'+String(RC).replace(/[\/\\]/g,'-'))}catch(e){window.__printDone&&window.__printDone()}},300);return}
+  window.addEventListener('afterprint',done);setTimeout(()=>window.print(),150)}
 
 let __cf=null;
 async function pdfFont(){if(__cf!==null)return __cf;try{const css=await(await fetch('https://fonts.googleapis.com/css2?family=Cairo:wght@700;900&display=swap')).text();let out='';
@@ -2248,12 +2331,12 @@ function pdfBuild(P){const enc=new TextEncoder(),parts=[],off=[];let len=0;const
     const c='q '+pw+' 0 0 '+ph+' 0 0 cm /Im0 Do Q';obj(o+2,'<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream')});
   const xr=len,tot=3+n*3;add('xref\n0 '+tot+'\n0000000000 65535 f \n');for(let i=1;i<tot;i++)add(String(off[i]).padStart(10,'0')+' 00000 n \n');add('trailer\n<< /Size '+tot+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF');
   return new Blob(parts,{type:'application/pdf'})}
-async function exportPdf(v,t){t=t||RT||1;const r=R(RC),m=document.getElementById('rPdfMsg')||$('#rMsg');
-  if((v==='att'||v==='gr'||v==='sum')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}
+async function exportPdf(v,t,only){t=t||RT||1;const r=R(RC),m=document.getElementById('rPdfMsg')||$('#rMsg');
+  if((v==='att'||v==='gr'||v==='sum'||v==='mon')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}
   const say=t=>{const el=document.getElementById('rPdfMsg');if(el)el.textContent=t};
-  try{say('بجهّز ملف PDF... (ممكن ياخد نص دقيقة)');const html=buildPrint(v,r,t),tmp=document.createElement('div');tmp.innerHTML=html;const pages=[...tmp.querySelectorAll('.pg')];
+  try{say('بجهّز ملف PDF... (ممكن ياخد نص دقيقة)');const html=buildPrint(v,r,t,only),tmp=document.createElement('div');tmp.innerHTML=html;const pages=[...tmp.querySelectorAll('.pg')];
     const font=await pdfFont(),css=pdfCss(),P=[];for(let i=0;i<pages.length;i++){say('بجهّز صفحة '+(i+1)+' من '+pages.length+'...');P.push(await pdfPage(pages[i].outerHTML,pages[i].classList.contains('l'),css,font));await new Promise(r=>setTimeout(r,20))}
-    const blob=pdfBuild(P),nm=({att:'غياب',gr:'درجات',sum:'درجات',weak:'ضعاف',r26:'26-قرائية'}[v]||'سجل')+((v==='att'||v==='gr'||v==='sum')?'-الترم-'+TNAME[t]:'')+'-فصل-'+String(RC).replace(/[\/\\]/g,'-')+'.pdf';
+    const blob=pdfBuild(P),nm=({att:'غياب',gr:'درجات',sum:'درجات',mon:'متوسطات-الشهور',weak:'ضعاف',r26:'26-قرائية'}[v]||'سجل')+((v==='att'||v==='gr'||v==='sum'||v==='mon')?'-الترم-'+TNAME[t]:'')+(only!=null?'-صفحة-'+(only+1):'')+'-فصل-'+String(RC).replace(/[\/\\]/g,'-')+'.pdf';
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nm;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
     say('اتحفظ ملف PDF: '+nm+' ('+pages.length+' صفحة'+(font?'':'، من غير خط Cairo لأن النت مش متاح') +'). دوّر عليه في التنزيلات (Downloads).');window.__lastPdf=blob}
   catch(e){say('ما قدرتش أعمل PDF على الجهاز ده. استخدم زر الطباعة واختار «حفظ كـ PDF».')}}
@@ -2275,6 +2358,22 @@ window.__back=function(){try{
   if(full.length)return cl(full[full.length-1]);
   const c=$('#dlgC');if(c&&c.open){if(recBack())return'ok';$('#cClose').click();return'ok'}
   return'none'}catch(e){return'none'}};
+/* ---- زرار الرجوع في المتصفح/PWA: كل ضغطة ترجع خطوة جوه التطبيق (الـAPK بيستخدم __back بنفسه) ---- */
+(function(){if(window.AndroidUpd||!window.history||!history.pushState)return;
+  let last=0,tm=0;
+  const arm=()=>{try{if(!(history.state&&history.state.gr===1))history.pushState({gr:1},'')}catch(e){}};
+  const toast=m=>{let t=document.getElementById('bkToast');if(!t){t=document.createElement('div');t.id='bkToast';t.style.cssText='position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:20px;font-size:14px;z-index:99999;font-family:inherit';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(tm);tm=setTimeout(()=>{t.style.display='none'},2000)};
+  try{history.replaceState({gr:0},'');}catch(e){}
+  arm();
+  addEventListener('pointerdown',arm,true);
+  addEventListener('popstate',()=>{
+    if(history.state&&history.state.gr===1)return;
+    const r=window.__back();
+    if(r==='ok'){arm();return}
+    const n=Date.now();
+    if(n-last<2000){history.back();return}
+    last=n;arm();toast('اضغط رجوع تاني للخروج')});
+})();
 window.__rec={recBack,exportPdf,buildPrint,xlsxRows,pickNames,R,rOpen,doPrint,wkInfo,wkDates,lastCal,blockCals};
 /* ---- الشريط الجانبي: يفتح بالشعار والسحب من الحافة ---- */
 function rail(){
