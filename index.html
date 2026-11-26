@@ -2050,14 +2050,15 @@ function rRender(){const r=R(RC);
   const mp={names:vNames,att:vAtt,gr:vGr,sum:vSum,weak:vWeak,r26:vR26};
   const keep=$('#rBody').scrollTop;const _rv=RV;$('#rBody').innerHTML=(r.names.length||RV==='names'||RV==='weak'||RV==='r26'?mp[RV](r):'<div class="rn" style="text-align:center;padding:24px">ضيف أسماء الطلاب الأول من تبويب «الأسماء».</div>');$('#rBody').scrollTop=keep;
   if(RV==='names'&&$('#rNames')&&ND[RC]!=null){$('#rNames').value=ND[RC];const m=$('#rMsg');if(m)m.textContent='فيه أسماء كنت كاتبها ومش محفوظة. دوس «حفظ الأسماء» عشان تتحفظ.'}}
-function rOpen(c,v){RC=c;RV=v;RB=0;rShow(true);rRender();$('#rBody').scrollTop=0}
+let RVH=[];
+function rOpen(c,v){RVH=[];RC=c;RV=v;RB=0;rShow(true);rRender();$('#rBody').scrollTop=0}
 /* ---- أحداث ---- */
 function bind(){
   document.body.insertAdjacentHTML('beforeend','<div id="printArea"></div>');
   $('#cChips').insertAdjacentHTML('afterend','<div id="rWrap" hidden><span id="rT" hidden></span><div class="rtab" id="rTab"></div><div class="dlg-body" id="rBody"></div></div>');
   $('#cClose').addEventListener('click',()=>{RMODE=false});
   $('#rBody').addEventListener('input',e=>{if(e.target.id==='rNames')ND[RC]=e.target.value});
-  $('#rTab').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;if(b.dataset.v==='home'){rShow(false);cRender();return}RV=b.dataset.v;rRender()};
+  $('#rTab').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;if(b.dataset.v==='home'){RVH=[];rShow(false);cRender();return}if(RV!==b.dataset.v){RVH.push(RV);if(RVH.length>30)RVH.shift()}RV=b.dataset.v;RB=0;rRender()};
   $('#rBody').onclick=async e=>{const r=R(RC),t=e.target,b=t.closest('button[data-a]'),ab=t.closest('.ab');
     const gb=e.target.closest('[data-gi]');if(gb){const n=r.names[+gb.dataset.gi],o=gOf(r,n);r.gn=r.gn||{};r.gn[arK(n)]=o.sure?(o.g==='f'?'m':'f'):(o.g==='f'?'m':'f');save();rRender();return}
     if(ab){const k=ab.dataset.x+'|'+ab.dataset.d,v=r.mk[k]||'',n=v===''?'a':v==='a'?'e':'';if(n)r.mk[k]=n;else delete r.mk[k];save();ab.textContent=n==='a'?'غ':n==='e'?'ع':'';return}
@@ -2256,7 +2257,25 @@ async function exportPdf(v,t){t=t||RT||1;const r=R(RC),m=document.getElementById
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nm;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
     say('اتحفظ ملف PDF: '+nm+' ('+pages.length+' صفحة'+(font?'':'، من غير خط Cairo لأن النت مش متاح') +'). دوّر عليه في التنزيلات (Downloads).');window.__lastPdf=blob}
   catch(e){say('ما قدرتش أعمل PDF على الجهاز ده. استخدم زر الطباعة واختار «حفظ كـ PDF».')}}
-window.__rec={exportPdf,buildPrint,xlsxRows,pickNames,R,rOpen,doPrint,wkInfo,wkDates,lastCal,blockCals};
+
+/* زر الرجوع في الأندرويد: يرجّع خطوة جوه البرنامج بدل ما يقفله. بيرجع 'ok' لو اتعالج، و'none' لو لازم يخرج */
+function recBack(){if(!RMODE||$('#dlgC').open===false)return false;
+  if(VP){VP=false;rRender();return true}
+  if((RV==='att'||RV==='gr'||RV==='sum')&&RB>0){RB--;rRender();return true}
+  if(RVH.length){RV=RVH.pop();RB=0;rRender();return true}
+  rShow(false);cRender();return true}
+window.__back=function(){try{
+  const ov=document.querySelector('#wkpop,#addpop');if(ov){ov.remove();return'ok'}
+  if(document.body.classList.contains('railopen')){document.body.classList.remove('railopen');return'ok'}
+  const ds=[...document.querySelectorAll('dialog[open]')];
+  const small=ds.filter(d=>!d.classList.contains('full-dlg')&&d.id!=='dlgC');
+  const full=ds.filter(d=>d.classList.contains('full-dlg')&&d.id!=='dlgC');
+  const cl=d=>{const ev=new Event('cancel',{cancelable:true});d.dispatchEvent(ev);if(!ev.defaultPrevented&&d.open)d.close();return'ok'};
+  if(small.length)return cl(small[small.length-1]);
+  if(full.length)return cl(full[full.length-1]);
+  const c=$('#dlgC');if(c&&c.open){if(recBack())return'ok';$('#cClose').click();return'ok'}
+  return'none'}catch(e){return'none'}};
+window.__rec={recBack,exportPdf,buildPrint,xlsxRows,pickNames,R,rOpen,doPrint,wkInfo,wkDates,lastCal,blockCals};
 /* ---- الشريط الجانبي: يفتح بالشعار والسحب من الحافة ---- */
 function rail(){
   const scrim=document.createElement('div');scrim.id='railScrim';document.body.appendChild(scrim);
@@ -2305,12 +2324,13 @@ setTimeout(()=>{try{if(UPD&&document.querySelector('.dock')&&typeof R==='functio
 /* ---- قراءة الأسماء من صورة: قص صف صف + نموذج عربي على الجهاز (ONNX) + تصحيح بقاموس أسماء ---- */
 const N2_CH=["blank", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "]", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "©", "‥", "{", "}", "\\", "|", "@", "^", "~", "÷", "∕", "∙", "⋅", "·", "±", "∓", "∩", "∪", "□", "←", "↔", "⇒", "⇐", "⇔", "∀", "∃", "∄", "∴", "∵", "∝", "∞", "⊥", "∟", "∠", "∡", "∢", "′", "″", "∥", "⊾", "⊿", "∂", "∫", "∬", "∭", "∮", "∯", "∰", "∑", "∏", "√", "∛", "∜", "∱", "∲", "∳", "∶", "∷", "∼", "®", "℉", "Ω", "℧", "Å", "⌀", "ℏ", "⅀", "⍺", "⍵", "¢", "€", "£", "¥", "₿", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ", "Ⅺ", "Ⅻ", "ⅰ", "ⅱ", "ⅲ", "ⅳ", "ⅴ", "ⅵ", "ⅶ", "ⅷ", "ⅸ", "ⅹ", "ⅺ", "ⅻ", "➀", "➁", "➂", "➃", "➄", "➅", "➆", "➇", "➈", "➉", "➊", "➋", "➌", "➍", "➎", "➏", "➐", "➑", "➒", "➓", "❶", "❷", "❸", "❹", "❺", "❻", "❼", "❽", "❾", "❿", "①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩", "●", "▶", "𝑢", "︽", "–", "﹥", "𝜓", "•", "∋", "ƒ", "०", "⬆", "Ạ", "◀", "", "▫", "︾", "À", "Á", "Â", "Ã", "Ä", "Å", "Æ", "Ç", "È", "É", "Ê", "Ë", "Ì", "Í", "Î", "Ï", "Ð", "Ñ", "Ò", "Ó", "Ô", "Õ", "Ö", "Ø", "Ù", "Ú", "Û", "Ü", "Ý", "Þ", "à", "á", "â", "ã", "ä", "å", "æ", "ç", "è", "é", "ê", "ë", "ì", "í", "î", "ï", "ð", "ñ", "ò", "ó", "ô", "õ", "ö", "ø", "ù", "ú", "û", "ü", "ý", "þ", "ÿ", "¡", "¤", "¦", "§", "¨", "ª", "«", "¬", "¯", "°", "²", "³", "´", "µ", "¶", "¸", "¹", "º", "»", "¼", "½", "¾", "¿", "×", "‐", "‑", "‒", "—", "―", "‖", "‗", "‘", "’", "‚", "‛", "“", "”", "„", "‟", "†", "‡", "‣", "․", "…", "‧", "‰", "‴", "‵", "‶", "‷", "‸", "‹", "›", "※", "‼", "‽", "‾", "₤", "₡", "₹", "−", "∖", "∗", "≈", "≠", "≡", "≤", "≥", "⊂", "⊃", "↑", "→", "↓", "↕", "™", "Ω", "℮", "∆", "✓", "✗", "✘", "▪", "◼", "✔", "✕", "☑", "☒", "№", "₽", "₴", "Α", "α", "Β", "β", "Γ", "γ", "Δ", "δ", "Ε", "ε", "Ζ", "ζ", "Η", "η", "Θ", "θ", "Ι", "ι", "Κ", "κ", "Λ", "λ", "Μ", "μ", "Ν", "ν", "Ξ", "ξ", "Ο", "ο", "Π", "π", "Ρ", "ρ", "Σ", "σ", "ς", "Τ", "τ", "Υ", "υ", "Φ", "φ", "Χ", "χ", "Ψ", "ψ", "ω", "ـ", "،", "؍", "؎", "؏", "ؐ", "ؑ", "ؒ", "ؓ", "ؔ", "ؕ", "ؖ", "ؗ", "ؘ", "ؙ", "ؚ", "؛", "؞", "؟", "ء", "آ", "أ", "ؤ", "إ", "ئ", "ا", "ب", "ة", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه", "و", "ى", "ي", "ً", "ٌ", "ٍ", "َ", "ُ", "ِ", "ّ", "ْ", "ٓ", "ٔ", "ٕ", "ٖ", "ٗ", "ٚ", "ٛ", "ٜ", "ٝ", "ٞ", "ٟ", "ٰ", "ٱ", "ٲ", "ٳ", "ٴ", "ٵ", "ٶ", "ٷ", "ٸ", "ٹ", "ٺ", "ٻ", "ټ", "ٽ", "پ", "ٿ", "ڀ", "ځ", "ڂ", "ڃ", "ڄ", "څ", "چ", "ڇ", "ڈ", "ډ", "ڊ", "ڋ", "ڌ", "ڍ", "ڎ", "ڏ", "ڐ", "ڑ", "ڒ", "ړ", "ڔ", "ڕ", "ږ", "ڗ", "ژ", "ڙ", "ښ", "ڛ", "ڜ", "ڝ", "ڞ", "ڟ", "ڠ", "ڡ", "ڢ", "ڣ", "ڤ", "ڥ", "ڦ", "ڧ", "ڨ", "ک", "ڪ", "ګ", "ڬ", "ڭ", "ڮ", "گ", "ڰ", "ڱ", "ڲ", "ڳ", "ڴ", "ڵ", "ڶ", "ڷ", "ڸ", "ڹ", "ں", "ڻ", "ڼ", "ڽ", "ھ", "ڿ", "ۀ", "ہ", "ۂ", "ۃ", "ۄ", "ۅ", "ۆ", "ۇ", "ۈ", "ۉ", "ۊ", "ۋ", "ی", "ۍ", "ێ", "ۏ", "ې", "ۑ", "ے", "ۓ", "۔", "ە", "ۖ", "ۗ", "ۘ", "ۙ", "ۚ", "ۛ", "ۜ", "۞", "ۡ", "ۢ", "ۣ", "ۤ", "ۥ", "ۦ", "ۧ", "ۨ", "۩", "ۭ", "ۮ", "ۯ", "ݐ", "ݑ", "ݒ", "ݓ", "ݔ", "ݕ", "ݖ", "ݗ", "ݘ", "ݙ", "ݚ", "ݛ", "ݜ", "ݝ", "ݞ", "ݟ", "ݠ", "ݡ", "ݢ", "ݣ", "ݤ", "ݥ", "ݦ", "ݧ", "ݨ", "ݩ", "ݪ", "ݫ", "ݬ", "ݭ", "ݮ", "ݯ", "ݰ", "ݱ", "ݲ", "ݳ", "ݴ", "ݵ", "ݶ", "ݷ", "ݸ", "ݹ", "ݺ", "ݻ", "ݼ", "ݽ", "ݾ", "ݿ", "٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٪", "٫", "٬", "۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "ﭙ", "ﭚ", "ﭪ", "ﭭ", "ﭺ", "ﭽ", "ﷲ", "﷼", "٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "٪", "٫", "٬", "۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "ﭙ", "ﭚ", "ﭪ", "ﭭ", "ﭺ", "ﭽ", "ﷲ", "﷼", " "];
 const N2_WORDS=["أمنية", "ابتسام", "ابراهيم", "ابن", "ابنه", "ابو", "ابوالعلا", "ابوضيف", "احمد", "ادم", "ادهم", "اروى", "اسامه", "اسر", "اسراء", "اسلام", "اسماء", "اسماعيل", "اسيا", "اسيل", "اشرف", "الابصيري", "البنا", "التواب", "الجواد", "الجوهري", "الحداد", "الحكيم", "الحميد", "الدين", "الرحمن", "الرحيم", "السلام", "السيد", "الشاذلي", "الشوازني", "العال", "العزيز", "الغفار", "الفار", "الفتاح", "القادر", "الله", "المجيد", "المصري", "الملاح", "المنعم", "النبوي", "النبي", "النجار", "الوهاب", "امل", "امنيه", "امير", "اميرة", "اميره", "امين", "انس", "انور", "ايات", "اياد", "ايمان", "ايمن", "ايه", "ايهاب", "باسم", "بخيت", "بدر", "بدوي", "بسام", "بسمة", "بسمله", "بلال", "بن", "بيشوي", "تامر", "ثابت", "جابر", "جاد", "جمال", "جميله", "جنة", "جنه", "جنى", "جهاد", "جورج", "جورى", "حافظ", "حامد", "حبيبة", "حبيبه", "حداد", "حسن", "حسني", "حسين", "حلا", "حماد", "حمدان", "حمدي", "حمزة", "حمزه", "حنين", "حور", "خالد", "خديجة", "خديجه", "خلود", "خليل", "دعاء", "دنيا", "ديما", "رأفت", "رائد", "راضي", "رامي", "رانيا", "رجب", "رحمة", "رحمه", "رضا", "رفاعي", "رقية", "رقيه", "رمضان", "رنا", "رنيم", "رهف", "روان", "روجي", "رودينا", "ريم", "ريماس", "ريناد", "رينال", "زكريا", "زهراء", "زهير", "زياد", "زين", "زينب", "سارة", "ساره", "سامح", "سامي", "سجدة", "سجده", "سجى", "سعد", "سعيد", "سلامه", "سلمان", "سلمى", "سلوى", "سليمان", "سما", "سمير", "سميرة", "سميه", "سيد", "سيف", "شادي", "شحات", "شروق", "شريف", "شعبان", "شمس", "شهاب", "شهد", "شوقي", "شيماء", "صابر", "صالح", "صبري", "صفاء", "صفيه", "صلاح", "طارق", "طه", "عائشة", "عائشه", "عادل", "عاطف", "عباس", "عبد", "عبدالحكيم", "عبدالحميد", "عبدالرحمن", "عبدالرحيم", "عبدالسلام", "عبدالعال", "عبدالعزيز", "عبدالغفار", "عبدالفتاح", "عبدالقادر", "عبدالله", "عبدالمجيد", "عبدالمنعم", "عثمان", "عصام", "عصمت", "عطية", "عطيه", "علاء", "علام", "علي", "عليا", "علياء", "عماد", "عمار", "عمر", "عمرو", "عوض", "غاده", "غانم", "غزل", "فؤاد", "فارس", "فاروق", "فاطمة", "فاطمه", "فتحي", "فراج", "فرج", "فرحة", "فرحه", "فرعل", "فريدة", "فريده", "فيروز", "قاسم", "كارما", "كارمن", "كامل", "كريم", "كمال", "كوثر", "لؤي", "لارا", "لجين", "لمار", "لمى", "ليلى", "لينا", "مؤمن", "ماجد", "ماريا", "مازن", "مالك", "ماهر", "مايا", "متولي", "مجاهد", "مجدي", "محروس", "محسن", "محمد", "محمود", "مختار", "مخلوف", "مدحت", "مراد", "مرسي", "مروان", "مروة", "مروه", "مريم", "مسعود", "مصباح", "مصطفى", "معاذ", "معتز", "معوض", "مكة", "مكه", "ملاك", "ملك", "ممدوح", "منار", "منصور", "منه", "منى", "مني", "مهند", "مودة", "موده", "مي", "ميار", "ميرنا", "مينا", "نادر", "نادين", "ناصر", "نبيل", "نجلاء", "ندى", "نرمين", "نسمة", "نسمه", "نصر", "نغم", "نهى", "نور", "نورهان", "نيرة", "هاجر", "هالة", "هاني", "هبة", "هبه", "هدى", "هدي", "هشام", "همام", "هنا", "هند", "هنده", "هيا", "هيثم", "وائل", "ورد", "وردة", "ورده", "وفاء", "ولاء", "وليد", "يارا", "ياسر", "ياسمين", "ياسين", "يحيى", "يسر", "يمنى", "يوسف", "يونس"];
+function n2loadO(n){return n2load('ocr/'+n).catch(()=>n2load(n))}
 function n2load(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('load '+src));document.head.appendChild(s)})}
 let n2sess=null;
 async function n2init(){if(n2sess)return n2sess;
-  if(!window.ort)await n2load('ocr/ort.js');
-  if(!window.__ORTWASM)await n2load('ocr/ort-wasm.js');
-  if(!window.__RECMODEL)await n2load('ocr/rec-model.js');
+  if(!window.ort)await n2loadO('ort.js');
+  if(!window.__ORTWASM)await n2loadO('ort-wasm.js');
+  if(!window.__RECMODEL)await n2loadO('rec-model.js');
   const u8=s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a};
   const wu=URL.createObjectURL(new Blob([u8(window.__ORTWASM)],{type:'application/wasm'}));ort.env.wasm.wasmPaths={'ort-wasm.wasm':wu,'ort-wasm-simd.wasm':wu,'ort-wasm-threaded.wasm':wu,'ort-wasm-simd-threaded.wasm':wu};ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
   n2sess=await ort.InferenceSession.create(u8(window.__RECMODEL),{executionProviders:['wasm'],graphOptimizationLevel:'all'});
