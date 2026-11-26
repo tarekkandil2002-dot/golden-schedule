@@ -1468,7 +1468,7 @@ $('#wSkip').onclick=()=>$('#dlgW').close();
 $('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
 /* ---- نسخة احتياطية / استرجاع ---- */
 function bkMsg(t){const m=$('#bMsg');if(m&&$('#dlgB').open){m.style.color='';m.textContent=t}else toast(t)}
-const APPV='33';
+const APPV='34';
 $('#appVer').textContent='v'+APPV;
 function bkMark(){S.lastBk=Date.now();S.lastBackup=todayISO();save();bkWhenShow();try{bkDot()}catch(e){}}
 function bkWhenShow(){const e=$('#bkWhen');if(!e)return;e.textContent=S.lastBk?'آخر نسخة احتياطية: '+new Date(S.lastBk).toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'}):'لسه مفيش نسخة احتياطية اتعملت.'}
@@ -1481,13 +1481,23 @@ let BK=null;
 const BK_PKG={drive:'com.google.android.apps.docs',onedrive:'com.microsoft.skydrive',telegram:'org.telegram.messenger',whatsapp:'com.whatsapp'};
 function bkFresh(){bkMark();BK={s:bkJson(),n:bkName()};const l=$('#bkLast');l.hidden=false;l.textContent='الملف الجاهز: '+BK.n+' . تقدر تبعته لأكتر من مكان بنفس الملف.'}
 async function bkDo(s,n,pkg){
+  const m=$('#bMsg'),say=(t,ok)=>{m.style.color=ok?'#059669':'';m.textContent=t};
+  if(BK&&!BK.saved){BK.saved=true;try{bkSaveDev(s,n)}catch(e){}}
+  const savedMsg='النسخة اتحفظت على الجهاز (التنزيلات)، تقدر تبعتها من هناك.';
   try{
-    if(window.AndroidSave&&AndroidSave.shareTo){AndroidSave.shareTo(n,'application/json',bkB64(s),pkg||'');return}
-    if(window.AndroidSave&&AndroidSave.share){AndroidSave.share(n,'application/json',bkB64(s));return}
-    const f=new File([s],n,{type:'application/json'});
-    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'نسخة احتياطية'});return}
-    bkSaveDev(s,n);bkMsg('المتصفح ده مبيدعمش المشاركة، فاتحفظت النسخة على الجهاز. ابعتها يدوي من التنزيلات.');
-  }catch(e){if(e&&e.name==='AbortError')return;bkMsg('تعذرت المشاركة، جرّب «حفظ على الجهاز»')}}
+    if(window.AndroidSave&&AndroidSave.shareTo){
+      say('جاري فتح المشاركة...');
+      const r=String(AndroidSave.shareTo(n,'application/json',bkB64(s),pkg||''));
+      if(r.indexOf('ok:direct')===0)say('اتفتح التطبيق ✓',1);
+      else if(r.indexOf('ok:chooser')===0)say(r.indexOf('direct-failed')>0?'التطبيق ده مش اتفتح مباشرة، فتحتلك شاشة المشاركة. اختار منها.':'اتفتحت شاشة المشاركة. اختار منها.',1);
+      else say('تعذر فتح المشاركة. '+savedMsg+' (تفاصيل: '+r+')');
+      return}
+    if(window.AndroidSave&&AndroidSave.share){AndroidSave.share(n,'application/json',bkB64(s));say('اتفتحت شاشة المشاركة.',1);return}
+    let f=new File([s],n,{type:'application/json'});
+    if(!(navigator.canShare&&navigator.canShare({files:[f]}))){f=new File([s],n+'.txt',{type:'text/plain'})}
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'نسخة احتياطية'});say('اتفتحت شاشة المشاركة.',1);return}
+    bkSaveDev(s,n);say('المتصفح ده مبيدعمش مشاركة الملف. '+savedMsg)
+  }catch(e){if(e&&e.name==='AbortError')return;say('تعذرت المشاركة. '+savedMsg+' (تفاصيل: '+(e&&e.message||e)+')')}}
 $('#bkShare').onclick=()=>{if(!BK)bkFresh();return bkDo(BK.s,BK.n,'')};
 document.querySelectorAll('.bkt').forEach(x=>x.onclick=()=>{if(!BK)bkFresh();return bkDo(BK.s,BK.n,BK_PKG[x.dataset.t])});
 $('#bkRestore').onclick=()=>{$('#bFile').value='';$('#bFile').click()};
