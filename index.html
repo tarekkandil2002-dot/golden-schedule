@@ -1694,7 +1694,7 @@ $('#wSkip').onclick=()=>$('#dlgW').close();
 $('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
 /* ---- نسخة احتياطية / استرجاع ---- */
 function bkMsg(t){const m=$('#bMsg');if(m&&$('#dlgB').open){m.style.color='';m.textContent=t}else toast(t)}
-const APPV='81';
+const APPV='82';
 $('#appVer').textContent='v'+APPV;
 function bkMark(){S.lastBk=Date.now();S.lastBackup=todayISO();save();bkWhenShow();try{bkDot()}catch(e){}}
 function bkWhenShow(){const e=$('#bkWhen');if(!e)return;e.textContent=S.lastBk?'آخر نسخة احتياطية: '+new Date(S.lastBk).toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'}):'لسه مفيش نسخة احتياطية اتعملت.'}
@@ -2656,10 +2656,12 @@ function buildPrint(v,r,t,only){t=t||RT||1;
   else if(v==='att'||v==='gr'||v==='sum'||v==='mon'){const kind=v==='att'?'att':'gr',B=blockCals(r,t);if(only!=null){const i=Math.min(Math.max(0,only),B.length-1);h=sheet(kind,B[i],false,i===B.length-1,t)}else{B.forEach((bl,i)=>{h+=sheet(kind,bl,false,i===B.length-1,t)});if(kind==='gr')h+=monSheet(r,false,t)}}
   else if(v==='weak')h=rpWeak(r,false);
   else if(v==='prep')h=rpPrep();
+  else if(v==='cov')h=cvPage(r,t);
+  else if(v==='covm')h=miOpen(r,t)+miClose(r,t);
   else h=rpQPages(r,false);
   if(only==null&&(v==='att'||v==='gr'||v==='sum'||v==='mon')){const X=cvExtraPages(r,t);h=X.head+h+X.tail}
   return h}
-function doPrint(v,t,only){const r=R(RC);if((v==='att'||v==='gr'||v==='sum'||v==='mon')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}if(v!=='att'&&v!=='gr'&&v!=='sum'&&v!=='mon'){if(v!=='weak'&&v!=='r26'&&v!=='prep'){gAlert('اختار الغياب أو الدرجات أو الضعاف أو 26 قرائية للطباعة.');return}}
+function doPrint(v,t,only){const r=R(RC);if((v==='att'||v==='gr'||v==='sum'||v==='mon')&&!r.start){gAlert('اختار تاريخ بداية أول أسبوع الأول.');return}if(v!=='att'&&v!=='gr'&&v!=='sum'&&v!=='mon'){if(v!=='weak'&&v!=='r26'&&v!=='prep'&&v!=='cov'&&v!=='covm'){gAlert('اختار الغياب أو الدرجات أو الضعاف أو 26 قرائية للطباعة.');return}}
   const h=buildPrint(v,r,t,only);
   $('#printArea').innerHTML=h;document.body.classList.add('rprint');document.body.classList.toggle('rland',v==='r26');
   const done=()=>{document.body.classList.remove('rprint');window.removeEventListener('afterprint',done)};
@@ -2699,7 +2701,7 @@ async function exportPdf(v,t,only){t=t||RT||1;const r=R(RC),m=document.getElemen
   const say=t=>{const el=document.getElementById('rPdfMsg');if(el)el.textContent=t};
   try{say('بجهّز ملف PDF... (ممكن ياخد نص دقيقة)');const html=buildPrint(v,r,t,only),tmp=document.createElement('div');tmp.innerHTML=html;const pages=[...tmp.querySelectorAll('.pg')];
     const f0=await pdfFont(),font=(f0||'')+CAIRO_E,css=pdfCss(),P=[];for(let i=0;i<pages.length;i++){say('بجهّز صفحة '+(i+1)+' من '+pages.length+'...');P.push(await pdfPage(pages[i].outerHTML,(pages[i].classList.contains('l')||pages[i].classList.contains('ql')),css,font));await new Promise(r=>setTimeout(r,20))}
-    const blob=pdfBuild(P),nm=({att:'غياب',gr:'درجات',sum:'درجات',mon:'متوسطات-الشهور',weak:'ضعاف',r26:'26-قرائية',prep:'الاعداد-اليومي'}[v]||'سجل')+((v==='att'||v==='gr'||v==='sum'||v==='mon')?'-الترم-'+TNAME[t]:'')+(only!=null?'-صفحة-'+(only+1):'')+'-فصل-'+String(RC).replace(/[\/\\]/g,'-')+'.pdf';
+    const blob=pdfBuild(P),nm=({att:'غياب',gr:'درجات',sum:'درجات',mon:'متوسطات-الشهور',weak:'ضعاف',r26:'26-قرائية',prep:'الاعداد-اليومي',cov:'غلاف',covm:'محضر'}[v]||'سجل')+((v==='att'||v==='gr'||v==='sum'||v==='mon')?'-الترم-'+TNAME[t]:'')+(only!=null?'-صفحة-'+(only+1):'')+'-فصل-'+String(RC).replace(/[\/\\]/g,'-')+'.pdf';
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nm;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
     say('اتحفظ ملف PDF: '+nm+' ('+pages.length+' صفحة'+(f0?'':'، من غير خط Cairo لأن النت مش متاح') +'). دوّر عليه في التنزيلات (Downloads).');window.__lastPdf={blob:blob,nm:nm};pdfShareBtn()}
   catch(e){say('ما قدرتش أعمل PDF على الجهاز ده. استخدم زر الطباعة واختار «حفظ كـ PDF».')}}
@@ -2756,7 +2758,7 @@ function rail(){
   dock.addEventListener('touchmove',e=>{if(sx==null||!B.classList.contains('railopen'))return;const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;if(dx>35&&Math.abs(dx)>Math.abs(dy)){open(false);sx=null}},{passive:true});
 }
 /* ---- تحديث البرنامج من جوه التطبيق (APK بس): تنزيل نسخة جديدة، فحص، تطبيق بموافقة، ورجوع للنسخة اللي قبلها ---- */
-const APP_VER=81;
+const APP_VER=82;
 const UPD=window.AndroidUpd||null;
 let updPend=null;
 function updInfo(){try{return JSON.parse(UPD.info())}catch(e){return{}}}
@@ -3404,12 +3406,13 @@ function vCov(r){const c=cvG(r),L=c.lang,A=cvAuto(L),MA=mAuto(r);
   const sec=window.__cvSec||'cover';
   const sw='<div class="rrow cvsw"><button class="btn '+(sec==='cover'?'':'ghost')+'" data-a="cvsec" data-s="cover">🎨 الغلاف</button><button class="btn '+(sec==='min'?'':'ghost')+'" data-a="cvsec" data-s="min">📜 محضر الفتح والغلق</button></div>';
   const term='<div class="rrow" id="rTerm"><button class="btn '+(RT===1?'':'ghost')+'" data-a="term1">الترم الأول</button><button class="btn '+(RT===2?'':'ghost')+'" data-a="term2">الترم الثاني</button></div>';
+  const pb='<div class="rrow"><button class="btn alt" data-a="print">🖨 طباعة</button><button class="btn" data-a="pdf">📄 حفظ PDF (الترم '+TNAME[RT]+')</button></div><div class="rn" id="rPdfMsg"></div>';
   const note='<div class="rn">الغلاف ومحضر الفتح بيتطبعوا في أول أي PDF أو طباعة للغياب والدرجات، ومحضر الغلق في الآخر. اللي مكتوب باهت بيتعبّى لوحده، واكتب فوقه عشان تغيّره.</div>';
-  if(sec==='cover')return sw+term+note
+  if(sec==='cover')return sw+term+pb+note
   +'<div class="rrow"><b style="font-size:14px">لغة الغلاف:</b><button class="btn '+(L==='ar'?'':'ghost')+'" data-a="cvlang" data-l="ar">عربي</button><button class="btn '+(L==='en'?'':'ghost')+'" data-a="cvlang" data-l="en">English</button></div>'
   +'<div class="cvf2"><div class="cvh">بيانات الغلاف ('+(L==='ar'?'عربي':'English')+')</div>'+[['school','School / المدرسة'],['teacher','Teacher / المدرس'],['subject','Subject / المادة'],['grade','Grade / الصف']].map(q=>inp('v|'+L,q[0],q[1],A[q[0]],(c.v[L][q[0]]||''))).join('')+'</div>'
   +'<div class="cvh">معاينة الغلاف</div><div class="cvpv">'+cvPage(r,RT)+'</div>';
-  return sw+term+note
+  return sw+term+pb+note
   +'<div class="cvf2"><div class="cvh">بيانات محضر الفتح والغلق</div>'+ml.map(q=>inp('m',q[0],q[1],MA[q[0]]||'',(c.m[q[0]]||''))).join('')+'</div>'
   +'<div class="cvh">معاينة محضر الفتح</div><div class="cvpv">'+miOpen(r,RT)+'</div><div class="cvh">معاينة محضر الغلق</div><div class="cvpv">'+miClose(r,RT)+'</div>'}
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.cv===undefined)return;const r=R(RC),c=cvG(r),p=t.dataset.cv.split('|'),k=p.pop(),val=t.value.trim();let o;if(p[0]==='m')o=c.m;else o=c.v[p[1]];if(val===''||val===(p[0]==='m'?(mAuto(r)[k]||''):cvAuto(p[1])[k]))delete o[k];else o[k]=val;save();rRender()});
