@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="الحصص الذهبي">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0F172A">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -1075,6 +1080,7 @@ html.zm dialog,html.zm .rpv,html.zm .cvpv{touch-action:pan-x pan-y pinch-zoom}
     <label>أو اختار ملف</label><input type="file" id="iFile" accept=".json,.txt,application/json,text/plain">
     <div class="err" id="iMsg"></div>
     <div class="acts"><button class="btn" id="iDo" type="button">استيراد من الكود</button><button class="btn ghost" id="iShow" type="button">كود جدولي الحالي</button></div>
+    <div class="acts"><button class="btn ghost" id="iUndo" type="button" hidden>↩ تراجع عن آخر استيراد صورة</button></div>
     <div class="acts"><button class="btn ghost" id="iClose" type="button">إغلاق</button></div>
   </div>
 </dialog>
@@ -1694,7 +1700,7 @@ $('#wSkip').onclick=()=>$('#dlgW').close();
 $('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
 /* ---- نسخة احتياطية / استرجاع ---- */
 function bkMsg(t){const m=$('#bMsg');if(m&&$('#dlgB').open){m.style.color='';m.textContent=t}else toast(t)}
-const APPV='82';
+const APPV='84';
 $('#appVer').textContent='v'+APPV;
 function bkMark(){S.lastBk=Date.now();S.lastBackup=todayISO();save();bkWhenShow();try{bkDot()}catch(e){}}
 function bkWhenShow(){const e=$('#bkWhen');if(!e)return;e.textContent=S.lastBk?'آخر نسخة احتياطية: '+new Date(S.lastBk).toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'}):'لسه مفيش نسخة احتياطية اتعملت.'}
@@ -2115,20 +2121,47 @@ function normName(t,arMode,conf){
   return{v:s,chk:1};
 }
 async function scanWithGemini(cv,apiKey){
-  const b64=cv.toDataURL('image/jpeg',0.88).split(',')[1];
-  const prompt='Extract ALL classes from this school timetable photo (any orientation, rows or columns, full or partial week, ignore empty days/cells). Return ONLY valid JSON array with no markdown: [{"day":6,"p":1,"n":1,"name":"7/2","subject":"E"}]. Day numbers: Saturday=6, Sunday=0, Monday=1, Tuesday=2, Wednesday=3, Thursday=4. p=starting period (1-based), n=duration in periods (1 or 2), name=class name (convert Arabic digits to 0-9 like 7/2), subject=short subject letter or name (default "E" if not shown).';
+  const b64=cv.toDataURL('image/jpeg',0.9).split(',')[1];
+  const NP=S.periods.length,DNm=DAYS.map(d=>d+'='+dn(d)).join('، ');
+  const prompt='You read a photographed school timetable (Arabic or English, any orientation: days in rows or in columns, right-to-left or left-to-right, full or partial week, handwritten or printed, possibly skewed).\n'
+   +'Return ONE JSON array. Each item is one lesson: {"day":int,"p":int,"n":int,"name":string,"subject":string,"conf":number}.\n'
+   +'Rules:\n'
+   +'- day numbers: '+DNm+' (Saturday=6, Sunday=0, Monday=1, Tuesday=2, Wednesday=3, Thursday=4). Use the day name written on the table. Skip days that are not in the table.\n'
+   +'- p = period number starting at 1, counted from the period header of the table (not from the left edge of the page). The app has '+NP+' periods per day, so p is between 1 and '+NP+'.\n'
+   +'- n = number of periods the lesson covers (1 normally, 2 if one cell is merged across two consecutive periods). Never more than the periods left in the day.\n'
+   +'- name = the class name exactly as written, like 7/2 or 3/5 or an Arabic name such as أ/ب. Convert Arabic-Indic digits to 0-9. Do not translate or correct it. Do not invent classes.\n'
+   +'- subject = a short subject name only if the table shows it, otherwise an empty string.\n'
+   +'- Skip empty cells, breaks and cells holding only a line or a mark.\n'
+   +'- conf = your confidence from 0 to 1 that the cell text AND its day and period are right. Give conf below 0.7 when the writing is unclear, the cell is crossed out, or you are unsure of its position. Do not skip an unclear cell: give your best reading with a low conf.\n'
+   +'- Output each lesson once. Sort by day then p.';
+  const schema={type:'ARRAY',items:{type:'OBJECT',properties:{day:{type:'INTEGER'},p:{type:'INTEGER'},n:{type:'INTEGER'},name:{type:'STRING'},subject:{type:'STRING'},conf:{type:'NUMBER'}},required:['day','p','n','name','conf']}};
   const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(apiKey);
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{temperature:0.1,responseMimeType:'application/json'}})});
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],generationConfig:{temperature:0.1,responseMimeType:'application/json',responseSchema:schema}})});
   if(!r.ok)throw new Error('api_'+r.status);
   const j=await r.json();
   const txt=(((j.candidates||[])[0]||{}).content||{}).parts?.[0]?.text||'[]';
-  const arr=JSON.parse(txt.replace(/```json|```/g,'').trim());
+  let arr;try{arr=JSON.parse(txt.replace(/```json|```/g,'').trim())}catch(e){throw new Error('badjson')}
   if(!Array.isArray(arr)||!arr.length)throw new Error('empty');
-  return arr.filter(x=>x&&DAYS.includes(+x.day)&&+x.p>=1&&String(x.name||'').trim()).map(x=>({
-    day:+x.day,p:+x.p,n:Math.max(1,Math.min(2,+x.n||1)),
-    txt:{v:arDig(String(x.name||'').trim()),chk:0},
-    subj:String(x.subject||'').trim(),thumb:''
-  }));
+  return gemNorm(arr,NP);
+}
+function gemNorm(arr,NP){
+  const out=[],used={};let dropped=0;
+  arr.forEach(x=>{
+    if(!x||!DAYS.includes(+x.day)||!(+x.p>=1)||+x.p>NP){dropped++;return}
+    const name=arDig(String(x.name||'').replace(/\s+/g,' ').trim());
+    if(!name){dropped++;return}
+    const p=+x.p,n=Math.max(1,Math.min(+x.n||1,NP-p+1,3)),day=+x.day;
+    let chk=0;
+    const cf=+x.conf;if(!(cf>=0.7))chk=1;
+    if(!/^[0-9A-Za-z\u0600-\u06FF\/\-\.\s]{1,16}$/.test(name))chk=1;
+    for(let k=p;k<p+n;k++){if(used[day+'_'+k]!==undefined){chk=1;out[used[day+'_'+k]].txt.chk=1}}
+    for(let k=p;k<p+n;k++)used[day+'_'+k]=out.length;
+    out.push({day,p,n,txt:{v:name,chk},subj:String(x.subject||'').trim(),thumb:''});
+  });
+  if(!out.length)throw new Error('empty');
+  out.dropped=dropped;
+  out.sort((a,b)=>(b.txt.chk-a.txt.chk)||(DAYS.indexOf(a.day)-DAYS.indexOf(b.day))||(a.p-b.p));
+  return out;
 }
 const pMsg=(t,pct)=>{$('#pMsg').textContent=t;const bar=$('#pBar'),fl=$('#pFill');if(pct===undefined){bar.hidden=true}else{bar.hidden=false;fl.style.width=Math.min(100,Math.max(2,pct))+'%'}};
 $('#pAiKey').onchange=()=>{S.aiKey=$('#pAiKey').value.trim();save()};
@@ -2151,7 +2184,7 @@ $('#pFile').onchange=async e=>{
       S.aiKey=aiKey;save();
       pMsg('✨ بقرا الجدول بالذكاء الاصطناعي (أي جهة وأي خط)...',45);
       const aiRes=await scanWithGemini(cv,aiKey);
-      pMsg('');showPreview(aiRes,false,'✨ تمت القراءة بالذكاء الاصطناعي — راجع الحصص وعدّل أي خانة لو حابب.');
+      pMsg('');showPreview(aiRes,false,'✨ تمت القراءة بالذكاء الاصطناعي — راجع الحصص (المشكوك فيها فوق).'+(aiRes.dropped?' اتجاهلت '+aiRes.dropped+' حصة برا الجدول.':''));
       e.target.value='';return;
     }
 
@@ -2232,11 +2265,13 @@ $('#pFile').onchange=async e=>{
     await wk.terminate();pMsg('');
     const layTxt={rr:'أيام في صفوف (يمين)',rl:'أيام في صفوف (شمال)',cr:'أيام في أعمدة (يمين←شمال)',cl:'أيام في أعمدة (شمال←يمين)'}[layout]||'';
     showPreview(res,gl.fallback,'تم التعرف على الجدول ('+layTxt+') — تقدر تعدّل اليوم أو الحصة أو اسم الفصل لأي خانة.');
-  }catch(err){pMsg(navigator.onLine?'حصلت مشكلة في القراءة ('+(err&&err.message||'')+'). اتأكد من الصورة أو مفتاح AI.':'محتاج نت أول مرة عشان تحميل أداة القراءة.')}
+  }catch(err){const em=String(err&&err.message||'');pMsg(navigator.onLine?(/^api_(400|401|403)$/.test(em)?'مفتاح Gemini مش مقبول. اتأكد إنه منسوخ كامل وإنه شغّال.':em==='api_429'?'وصلت للحد المجاني لجوجل دلوقتي. جرّب بعد شوية.':em==='empty'?'ما لقيتش حصص في الصورة. جرّب صورة أوضح أو غيّر التدوير.':em==='badjson'?'الرد جه ناقص. جرّب تاني.':'حصلت مشكلة في القراءة ('+em+'). اتأكد من الصورة أو مفتاح AI.'):'محتاج نت أول مرة عشان تحميل أداة القراءة.')}
   e.target.value='';
 };
 let PV=[];
+function pvCount(){let n=0;PV.forEach(c=>{if(c.txt.chk)n++});let e=$('#pvDoubt');if(!e){e=document.createElement('div');e.id='pvDoubt';e.style.cssText='font-weight:800;margin-top:6px';$('#pvInfo').after(e)}e.textContent=n?'⚠ '+n+' خانة محتاجة مراجعة (البرتقالي)':'✓ مفيش خانات مشكوك فيها';e.style.color=n?'#B45309':'#047857'}
 function showPreview(res,isFallback,msg){PV=res;
+  $('#pvInfo').dataset.base='1';
   $('#pvInfo').textContent=(isFallback?'تقسيم تلقائي · ':'')+(msg||'قارن كل خانة بالصورة المصغّرة جنبها وعدّلها لو لزم.');
   const dayOpts=sel=>DAYS.map(d=>'<option value="'+d+'"'+(d===sel?' selected':'')+'>'+esc(dn(d))+'</option>').join('');
   const pOpts=sel=>S.periods.map((_,idx)=>'<option value="'+(idx+1)+'"'+((idx+1)===sel?' selected':'')+'>ح'+(idx+1)+'</option>').join('');
@@ -2246,6 +2281,8 @@ function showPreview(res,isFallback,msg){PV=res;
     +(c.thumb?'<img src="'+c.thumb+'" alt="" style="flex:0 0 56px;width:56px;height:34px;object-fit:contain;border-radius:7px;border:1px solid var(--line);background:#fff">':'')
     +'<input class="pvn" data-i="'+i+'" value="'+esc(c.txt.v)+'" placeholder="الفصل" style="flex:1;min-width:56px;padding:7px 6px;font-weight:800;text-align:center;'+(c.txt.chk?'border-color:#F59E0B;background:var(--gold-soft)':'')+'">'
     +'<button type="button" class="hx pvx" aria-label="حذف">✕</button></div>').join('');
+  pvCount();
+  $('#pvList').oninput=ev=>{const t=ev.target;if(t.classList.contains('pvn')){t.style.borderColor='';t.style.background='';const r=t.closest('[data-pvr]');if(r&&PV[+r.dataset.pvr])PV[+r.dataset.pvr].txt.chk=0;if(r)r.style.borderColor='var(--line)';pvCount()}};
   $('#pvList').onclick=ev=>{const x=ev.target.closest('.pvx');if(x)x.closest('[data-pvr]').remove()};
   $('#pvErr').textContent='';$('#dlgI').close();$('#dlgP').showModal()}
 $('#pvCancel').onclick=$('#pvCloseTop').onclick=()=>$('#dlgP').close();
@@ -2259,7 +2296,8 @@ $('#pvOk').onclick=async()=>{
   if(!out.length){$('#pvErr').textContent='مفيش حصص صالحة.';return}
   const V=S.view||'m';
   if(!(await gConfirm('هيتم استبدال جدول الفترة ('+SHN[V]+') بـ '+out.length+' حصة. موافق؟')))return;
-  S.classes=S.classes.filter(c=>(c.sh||'m')!==V).concat(out);save();$('#dlgP').close();render();if(bad)await gAlert('اتخطّيت '+bad+' خانة فاضية أو متعارضة.')};
+  try{localStorage.setItem('ghs3_imp',JSON.stringify({v:V,t:Date.now(),cls:S.classes.filter(c=>(c.sh||'m')===V)}))}catch(e){}
+  S.classes=S.classes.filter(c=>(c.sh||'m')!==V).concat(out);save();$('#dlgP').close();render();impUndoShow();toast('اتستبدل الجدول. للتراجع: زر الاستيراد ثم ↩ تراجع.');if(bad)await gAlert('اتخطّيت '+bad+' خانة فاضية أو متعارضة.')};
 
 /* ---- استيراد الجدول من كود + نسخة احتياطية ---- */
 const DNM={'السبت':6,'الأحد':0,'الاحد':0,'الاثنين':1,'الأثنين':1,'الثلاثاء':2,'الأربعاء':3,'الاربعاء':3,'الخميس':4};
@@ -2267,7 +2305,12 @@ const exportCode=()=>JSON.stringify({log:S.log||{},my:S.myCls||[],info:{gov:S.in
 const tNorm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(String(t).trim());return m?pad2(+m[1])+':'+m[2]:null};
 const iMsg=(t,ok)=>{const e=$('#iMsg');e.textContent=t;e.style.color=ok?'#059669':''};
 $('#wImp').onclick=()=>$('#impBtn').click();$('#wSet').onclick=()=>$('#setBtn').click();
-$('#impBtn').onclick=()=>{$('#iCode').value='';$('#iFile').value='';$('#pAiKey').value=S.aiKey||'';pMsg('');iMsg('');$('#dlgI').showModal()};
+$('#impBtn').onclick=()=>{impUndoShow();$('#iCode').value='';$('#iFile').value='';$('#pAiKey').value=S.aiKey||'';pMsg('');iMsg('');$('#dlgI').showModal()};
+function impUndoShow(){let ok=false;try{const o=JSON.parse(localStorage.getItem('ghs3_imp')||'null');ok=!!(o&&o.cls)}catch(e){}$('#iUndo').hidden=!ok}
+$('#iUndo').onclick=async()=>{let o=null;try{o=JSON.parse(localStorage.getItem('ghs3_imp')||'null')}catch(e){}
+  if(!o||!o.cls)return;const V=o.v;
+  if(!(await gConfirm('هيرجع جدول ('+SHN[V]+') زي ما كان قبل آخر استيراد صورة ('+o.cls.length+' حصة). موافق؟')))return;
+  S.classes=S.classes.filter(c=>(c.sh||'m')!==V).concat(o.cls);try{localStorage.removeItem('ghs3_imp')}catch(e){}save();render();impUndoShow();$('#dlgI').close();toast('رجّعت الجدول زي ما كان.')};
 $('#iClose').onclick=$('#iCloseTop').onclick=()=>$('#dlgI').close();
 $('#iFile').onchange=async e=>{const f=e.target.files[0];if(f){$('#iCode').value=await f.text();iMsg('')}};
 $('#iShow').onclick=async()=>{const c=exportCode();$('#iCode').value=c;let ok=false;try{await navigator.clipboard.writeText(c);ok=true}catch(e){try{$('#iCode').select();ok=document.execCommand('copy')}catch(_){}}iMsg(ok?'اتنسخ الكود. الصقه في أي مكان للاحتفاظ بيه.':'ده كود جدولك. انسخه واحتفظ بيه.',true)};
@@ -2758,7 +2801,7 @@ function rail(){
   dock.addEventListener('touchmove',e=>{if(sx==null||!B.classList.contains('railopen'))return;const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;if(dx>35&&Math.abs(dx)>Math.abs(dy)){open(false);sx=null}},{passive:true});
 }
 /* ---- تحديث البرنامج من جوه التطبيق (APK بس): تنزيل نسخة جديدة، فحص، تطبيق بموافقة، ورجوع للنسخة اللي قبلها ---- */
-const APP_VER=82;
+const APP_VER=84;
 const UPD=window.AndroidUpd||null;
 let updPend=null;
 function updInfo(){try{return JSON.parse(UPD.info())}catch(e){return{}}}
