@@ -712,6 +712,8 @@ table.sheet button.ab{color:#b00000;font-weight:900;font-size:16px}
 }
 table.sheet th.gy,.pg.sh table.sheet th.gy{background:#C9C9C9!important}
 .rwk .mid{white-space:nowrap;min-width:0}.rwk button{white-space:nowrap}
+
+.gdw{display:inline-flex;align-items:stretch;gap:2px}.gdel{border:1px solid #cbd5e1;background:#f1f5f9;color:#64748b;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px}
 .pg.cv{width:794px;height:1123px;position:relative;overflow:hidden;direction:ltr}
 .pg.cv .cvs{position:absolute;left:0;top:0;width:1240px;height:1754px;zoom:.64032}
 .pg.cv .cvb{position:absolute;left:0;top:0;width:1240px;height:1754px}
@@ -1700,7 +1702,7 @@ $('#wSkip').onclick=()=>$('#dlgW').close();
 $('#sGuide').onclick=()=>{$('#dlg2').close();wOpen()};
 /* ---- نسخة احتياطية / استرجاع ---- */
 function bkMsg(t){const m=$('#bMsg');if(m&&$('#dlgB').open){m.style.color='';m.textContent=t}else toast(t)}
-const APPV='84';
+const APPV='87';
 $('#appVer').textContent='v'+APPV;
 function bkMark(){S.lastBk=Date.now();S.lastBackup=todayISO();save();bkWhenShow();try{bkDot()}catch(e){}}
 function bkWhenShow(){const e=$('#bkWhen');if(!e)return;e.textContent=S.lastBk?'آخر نسخة احتياطية: '+new Date(S.lastBk).toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'}):'لسه مفيش نسخة احتياطية اتعملت.'}
@@ -2412,12 +2414,105 @@ function arSorted(L,r){return L.map((n,i)=>[n,i]).sort((p,q)=>{const gp=gOf(r||{
 function hasData(r){return Object.keys(r.mk||{}).length>0||Object.keys(r.gr||{}).some(k=>(r.gr[k]||[]).some(v=>v!=null&&v!==''))||(Object.keys(r.ex||{}).some(k=>(r.ex[k]||[]).some(v=>v!=null))||Object.keys(r.ex2||{}).some(k=>(r.ex2[k]||[]).some(v=>v!=null)))}
 function sortSaved(r){const P=arSorted(r.names,r),map={};P.forEach((p,n)=>{map[p[1]]=n});const re=o=>{const q={};for(const k in o){const[i,...rest]=k.split('|');const n=map[+i];q[(n===undefined?i:n)+(rest.length?'|'+rest.join('|'):'')]=o[k]}return q};
   r.mk=re(r.mk||{});r.gr=re(r.gr||{});r.ex=re(r.ex||{});r.ex2=re(r.ex2||{});r.names=P.map(p=>p[0]);save()}
-function gList(r){if(!r.names.length)return'';let q=0;const h=r.names.map((n,i)=>{const o=gOf(r,n);if(!o.sure)q++;return'<button type="button" class="gbtn'+(o.sure?'':' gq')+'" data-gi="'+i+'"><b class="g'+o.g+'">'+(o.sure?'':'؟ ')+(o.g==='f'?'بنت':'ولد')+'</b> '+eh(n)+'</button>'}).join('');
-  return'<div class="rn">الولد/البنت لكل طالب (الأولاد الأول وبعدهم البنات في «ترتيب أبجدي»). دوس على الطالب يتغير. '+(q?'<b>؟ = مش متأكد من الاسم ('+q+')، دوس عليه وحدد.</b>':'')+'</div><div class="glist">'+h+'</div>'}
+const NM_KEY='ghs3_nmax',NT_KEY='ghs3_ntrim';
+function nmax(){const v=+localStorage.getItem(NM_KEY);return v>=2&&v<=8?v:4}
+function nWords(n){return String(n).trim().split(/\s+/).filter(Boolean)}
+function ntSaved(){try{return JSON.parse(localStorage.getItem(NT_KEY)||'null')}catch(e){return null}}
+function ntLog(c,pairs){if(!pairs.length)return;const o=ntSaved(),a=(o&&o.c===c?o.p:[]).filter(x=>!pairs.some(y=>y.t===x.t));try{localStorage.setItem(NT_KEY,JSON.stringify({c,p:a.concat(pairs).slice(-60)}))}catch(e){}}
+// trim list L to nmax words; names in keep (already saved) are never touched; a trim that would make two names identical is skipped
+function trimList(L,keep){const mx=nmax(),ks=new Set((keep||[]).map(arK)),seen=new Set(L.filter(n=>nWords(n).length<=mx||ks.has(arK(n))).concat(keep||[]).map(arK)),pairs=[];let dup=0;
+  const out=L.map(n=>{if(nWords(n).length<=mx||ks.has(arK(n)))return n;const t=nWords(n).slice(0,mx).join(' '),k=arK(t);if(seen.has(k)){dup++;return n}seen.add(k);pairs.push({t,o:nWords(n).join(' ')});return t});
+  return{L:out,pairs,dup}}
+function trimNote(x){return x.pairs.length||x.dup?' — اتقصّ '+x.pairs.length+' اسم لـ'+nmax()+' كلمات'+(x.dup?'، و'+x.dup+' ما اتقصّوش عشان يطلعوا نفس اسم طالب تاني (راجعهم)':'')+'.':''}
+function ntRename(r,i,nw){const old=r.names[i],ko=arK(old),kn=arK(nw);r.names[i]=nw;if(r.gn&&ko!==kn){const g=r.gn[ko];if(g&&!r.names.some((n,j)=>j!==i&&arK(n)===kn))r.gn[kn]=g;if(!r.names.some((n,j)=>j!==i&&arK(n)===ko))delete r.gn[ko]}}
+function ntUndo(r){const o=ntSaved();if(!o||o.c!==RC)return;let n=0;const left=[];o.p.forEach(x=>{const i=r.names.indexOf(x.t);if(i>=0&&!r.names.some(m=>arK(m)===arK(x.o))){ntRename(r,i,x.o);n++}else left.push(x)});
+  try{if(left.length&&left.length<o.p.length)localStorage.setItem(NT_KEY,JSON.stringify({c:RC,p:left}));else localStorage.removeItem(NT_KEY)}catch(e){}
+  save();rRender();sdMsg(n?'رجّعت '+n+' اسم كاملين.':'مفيش اسم اتقصّ لسه موجود عشان أرجّعه.')}
+async function ntAll(r){
+  if(ND[RC]!=null&&ND[RC]!==r.names.join('\n')){sdMsg('فيه تعديل في خانة الأسماء ما اتحفظش. دوس «حفظ الأسماء» الأول.');return}
+  const mx=nmax(),x=trimList(r.names,[]);if(!x.pairs.length){sdMsg('مفيش اسم أكتر من '+mx+' كلمات.'+(x.dup?' ('+x.dup+' اسم هيتطابق مع غيره لو اتقصّ، فسيبتهم.)':''));return}
+  const ok=await gConfirm('هقص '+x.pairs.length+' اسم محفوظ لأول '+mx+' كلمات. الغياب والدرجات بتفضل مع كل طالب. بيتحفظ نسخة تقدر ترجّعها بزر التراجع. أكمّل؟');if(!ok)return;
+  try{localStorage.setItem('ghs3_ntrim_bk',JSON.stringify({c:RC,names:r.names.slice(),t:Date.now()}))}catch(e){}
+  x.pairs.forEach(p=>{const i=r.names.indexOf(p.o);if(i>=0)ntRename(r,i,p.t)});ntLog(RC,x.pairs);save();rRender();
+  sdMsg((sdKept(r)?'اتقصّ '+x.pairs.length+' اسم لـ'+mx+' كلمات.':'⚠ اتقصّ على الشاشة بس ما اتحفظش على الجهاز.')+(x.dup?' '+x.dup+' ما اتقصّوش عشان يطلعوا نفس اسم طالب تاني.':'')+' تقدر ترجّعهم بزر التراجع تحت.')}
+const SD_KEY='ghs3_sdel',SD_ST=['mk','gr','ga','ex','ex2'];
+function sdRe(o,i,mode){const q={};for(const k in (o||{})){const p=k.split('|'),n=+p[0];let m=n;if(mode==='del'){if(n===i)continue;if(n>i)m=n-1}else if(n>=i)m=n+1;p[0]=m;q[p.join('|')]=o[k]}return q}
+function sdMsg(t){const m=$('#rMsg');if(m)m.textContent=t}
+function sdSaved(){try{return JSON.parse(localStorage.getItem(SD_KEY)||'null')}catch(e){return null}}
+const SR_KEY='ghs3_srn';
+function sdKept(r){try{return JSON.parse(localStorage.getItem('ghs3')).rec[RC].names.join('|')===r.names.join('|')}catch(e){return false}}
+function srSaved(){try{return JSON.parse(localStorage.getItem(SR_KEY)||'null')}catch(e){return null}}
+async function srEdit(r,i){
+  if(ND[RC]!=null&&ND[RC]!==r.names.join('\n')){sdMsg('فيه تعديل في خانة الأسماء ما اتحفظش. دوس «حفظ الأسماء» الأول وبعدين عدّل الاسم.');return}
+  const old=r.names[i];if(old===undefined)return;
+  const pr=gPrompt('عدّل الاسم (الغياب والدرجات بتفضل مع الطالب)',old);const mi=$('#mInp');if(mi){mi.value=old;setTimeout(()=>{try{mi.setSelectionRange(old.length,old.length)}catch(e){}},80)}let nw=await pr;if(nw==null)return;
+  nw=String(nw).replace(/\s+/g,' ').trim();if(!nw||nw===old)return;let tx=trimList([nw],r.names.filter((n,j)=>j!==i));nw=tx.L[0];if(tx.pairs.length)ntLog(RC,tx.pairs);if(nw===old){sdMsg('الاسم بعد القص بيبقى زي ما هو.');return}if(nw.length>60)nw=nw.slice(0,60);
+  const ko=arK(old),kn=arK(nw),own=r.names.filter((n,j)=>j!==i&&arK(n)===ko).length>0,gnOld=(r.gn||{})[ko]||null,gnNewPrev=(r.gn||{})[kn]||null;
+  r.names[i]=nw;
+  if(r.gn&&ko!==kn){if(gnOld&&!(r.names.some((n,j)=>j!==i&&arK(n)===kn))){r.gn[kn]=gnOld}if(!own)delete r.gn[ko]}
+  try{localStorage.setItem(SR_KEY,JSON.stringify({c:RC,i,old,nw,gnOld,gnNewPrev,own,t:Date.now()}))}catch(e){}
+  save();rRender();
+  sdMsg(sdKept(r)?'اتغيّر الاسم إلى «'+nw+'»'+(tx.pairs.length?' (اتقصّ لـ'+nmax()+' كلمات)':'')+'. الغياب والدرجات زي ما هي. تقدر ترجّعه بزر التراجع تحت.':'⚠ اتغيّر على الشاشة بس ما اتحفظش على الجهاز (غالبا المساحة ممتلئة). خد نسخة احتياطية وفضّي مساحة قبل ما تقفل البرنامج.')}
+function srUndo(r){
+  const o=srSaved();if(!o||o.c!==RC)return;
+  if(r.names[o.i]!==o.nw){sdMsg('الاسم اتغيّر تاني بعد التعديل فما قدرتش أرجّعه تلقائي. عدّله بإيدك.');return}
+  r.names[o.i]=o.old;const ko=arK(o.old),kn=arK(o.nw);
+  if(r.gn&&ko!==kn){if(o.gnOld)r.gn[ko]=o.gnOld;if(!r.names.some((n,j)=>j!==o.i&&arK(n)===kn)){if(o.gnNewPrev)r.gn[kn]=o.gnNewPrev;else delete r.gn[kn]}}
+  try{localStorage.removeItem(SR_KEY)}catch(e){}
+  save();rRender();sdMsg('رجّعت الاسم «'+o.old+'».')}
+const SA_KEY='ghs3_sadd';
+async function saAdd(r,g){
+  if(ND[RC]!=null&&ND[RC]!==r.names.join('\n')){sdMsg('فيه تعديل في خانة الأسماء ما اتحفظش. دوس «حفظ الأسماء» الأول وبعدين ضيف الطالب.');return}
+  if(r.names.length>=ROWS){sdMsg('الفصل وصل '+ROWS+' طالب (الحد الأقصى).');return}
+  let nm=await gPrompt(g==='f'?'اسم الطالبة (بنت)':'اسم الطالب (ولد)','');if(nm==null)return;
+  nm=String(nm).replace(/\s+/g,' ').trim();if(!nm)return;const tx=trimList([nm],r.names);nm=tx.L[0];if(nm.length>60)nm=nm.slice(0,60);
+  const key=arK(nm);if(r.names.some(n=>arK(n)===key)){sdMsg('الاسم «'+nm+'» موجود فعلا في الفصل.');return}
+  r.gn=r.gn||{};const gnPrev=r.gn[key]||null;r.gn[key]=g;
+  const P=arSorted(r.names.concat([nm]),r);let pos=P.findIndex(p=>p[1]===r.names.length);if(pos<0||pos>r.names.length)pos=r.names.length;
+  SD_ST.forEach(st=>{if(r[st]!==undefined)r[st]=sdRe(r[st],pos,'ins')});
+  r.names.splice(pos,0,nm);
+  try{localStorage.setItem(SA_KEY,JSON.stringify({c:RC,i:pos,nm,gnPrev,t:Date.now()}))}catch(e){}ntLog(RC,tx.pairs);
+  save();rRender();
+  sdMsg(sdKept(r)?'اتضاف «'+nm+'» ('+(g==='f'?'بنت':'ولد')+')'+(tx.pairs.length?' (اتقصّ لـ'+nmax()+' كلمات)':'')+' في مكانه الأبجدي رقم '+(pos+1)+'. غياب ودرجات الباقيين زي ما هي. تقدر ترجّعه بزر التراجع تحت.':'⚠ اتضاف على الشاشة بس ما اتحفظش على الجهاز (غالبا المساحة ممتلئة). خد نسخة احتياطية وفضّي مساحة قبل ما تقفل البرنامج.')}
+function saSaved(){try{return JSON.parse(localStorage.getItem(SA_KEY)||'null')}catch(e){return null}}
+function saUndo(r){
+  const o=saSaved();if(!o||o.c!==RC)return;
+  if(r.names[o.i]!==o.nm){sdMsg('القايمة اتغيرت بعد الإضافة فما قدرتش أرجّعها تلقائي. احذفه بزر ✕.');return}
+  const has=SD_ST.some(st=>Object.keys(r[st]||{}).some(k=>+k.split('|')[0]===o.i));
+  if(has){sdMsg('اتسجل غياب أو درجات للطالب ده بعد الإضافة. احذفه بزر ✕ وهيسألك.');return}
+  SD_ST.forEach(st=>{if(r[st]!==undefined)r[st]=sdRe(r[st],o.i,'del')});
+  r.names.splice(o.i,1);if(r.gn){if(o.gnPrev)r.gn[arK(o.nm)]=o.gnPrev;else delete r.gn[arK(o.nm)]}
+  try{localStorage.removeItem(SA_KEY)}catch(e){}
+  save();rRender();sdMsg('شلت «'+o.nm+'».')}
+function sdBar(r){let h='';const o=sdSaved();if(o&&o.c===RC&&o.after===r.names.join('|'))h+='<div class="rrow"><button class="btn ghost" data-a="undoDel">↩ تراجع عن حذف «'+eh(o.name)+'»</button></div>';const a=saSaved();if(a&&a.c===RC&&r.names[a.i]===a.nm)h+='<div class="rrow"><button class="btn ghost" data-a="undoAdd">↩ تراجع عن إضافة «'+eh(a.nm)+'»</button></div>';const q=srSaved();if(q&&q.c===RC&&r.names[q.i]===q.nw)h+='<div class="rrow"><button class="btn ghost" data-a="undoRen">↩ تراجع عن تغيير «'+eh(q.old)+'»</button></div>';const nt=ntSaved();if(nt&&nt.c===RC){const k=nt.p.filter(x=>r.names.includes(x.t)).length;if(k)h+='<div class="rrow"><button class="btn ghost" data-a="undoTrim">↩ رجّع الأسماء الكاملة ('+k+')</button></div>'}return h}
+async function sdDel(r,i){
+  if(ND[RC]!=null&&ND[RC]!==r.names.join('\n')){sdMsg('فيه تعديل في خانة الأسماء ما اتحفظش. دوس «حفظ الأسماء» الأول وبعدين احذف الطالب.');return}
+  const name=r.names[i];if(name===undefined)return;
+  const cnt=o=>Object.keys(o||{}).filter(k=>+k.split('|')[0]===i&&(Array.isArray(o[k])?o[k].some(v=>v!=null&&v!==''):o[k]!=null&&o[k]!=='')).length;
+  const na=cnt(r.mk),ng=cnt(r.gr),ne=cnt(r.ex)+cnt(r.ex2);
+  const txt='هتحذف الطالب «'+name+'» من فصل '+RC+'. هيتشال معاه '+na+' علامة غياب/عذر و'+ng+' أسبوع درجات و'+ne+' درجة امتحان، واللي تحته هيطلع مكانه بغيابه ودرجاته. تقدر تتراجع بعدها. متأكد؟';
+  const ok=(typeof gConfirm==='function')?await gConfirm(txt):confirm(txt);if(!ok)return;
+  const d={};SD_ST.forEach(st=>{d[st]={};const o=r[st]||{};for(const k in o){const p=k.split('|');if(+p[0]===i){p[0]='#';d[st][p.join('|')]=o[k]}}});
+  const key=arK(name),gn=(r.gn||{})[key]||null;
+  SD_ST.forEach(st=>{if(r[st]!==undefined)r[st]=sdRe(r[st],i,'del')});
+  r.names.splice(i,1);
+  if(r.gn&&!r.names.some(n=>arK(n)===key))delete r.gn[key];
+  try{localStorage.setItem(SD_KEY,JSON.stringify({c:RC,i,name,gn,d,after:r.names.join('|'),t:Date.now()}))}catch(e){}
+  save();rRender();const kept=sdKept(r);
+  sdMsg(kept?'اتحذف «'+name+'». فاضل '+r.names.length+' طالب. تقدر ترجّعه بزر التراجع تحت.':'⚠ اتحذف على الشاشة بس ما اتحفظش على الجهاز (غالبا المساحة ممتلئة). خد نسخة احتياطية وفضّي مساحة قبل ما تقفل البرنامج.')}
+function sdUndo(r){
+  const o=sdSaved();if(!o||o.c!==RC)return;
+  if(o.after!==r.names.join('|')){sdMsg('الأسماء اتغيرت بعد الحذف فما قدرتش أرجّعه تلقائي. استرجع من النسخة الاحتياطية.');return}
+  const i=o.i;SD_ST.forEach(st=>{if(r[st]!==undefined||Object.keys(o.d[st]||{}).length){const q=sdRe(r[st]||{},i,'ins');for(const k in o.d[st]){const p=k.split('|');p[0]=i;q[p.join('|')]=o.d[st][k]}r[st]=q}});
+  r.names.splice(i,0,o.name);if(o.gn){r.gn=r.gn||{};r.gn[arK(o.name)]=o.gn}
+  try{localStorage.removeItem(SD_KEY)}catch(e){}
+  save();rRender();sdMsg('رجّعت «'+o.name+'» ببياناته.')}
+function gList(r){if(!r.names.length)return'';let q=0;const h=r.names.map((n,i)=>{const o=gOf(r,n);if(!o.sure)q++;return'<span class="gdw"><button type="button" class="gbtn'+(o.sure?'':' gq')+'" data-gi="'+i+'"><b class="g'+o.g+'">'+(o.sure?'':'؟ ')+(o.g==='f'?'بنت':'ولد')+'</b> '+eh(n)+'</button><button type="button" class="gdel" data-ge="'+i+'" aria-label="تعديل الاسم">✎</button><button type="button" class="gdel" data-gd="'+i+'" aria-label="حذف الطالب">✕</button></span>'}).join('');
+  return'<div class="rn">الولد/البنت لكل طالب (الأولاد الأول وبعدهم البنات في «ترتيب أبجدي»). دوس على الطالب يتغير، ✎ جنبه بيعدّل الاسم في مكانه (الغياب والدرجات بتفضل مع الطالب)، و✕ بيحذفه هو وغيابه ودرجاته. '+(q?'<b>؟ = مش متأكد من الاسم ('+q+')، دوس عليه وحدد.</b>':'')+'</div><div class="glist">'+h+'</div>'}
 function rowsN(r){return Math.max(r.names.length,0)}
 function vHead(){return''}
 function vNames(r){return'<div class="rn">اكتب اسم كل طالب في سطر (لحد 50). ممكن تلصق القايمة، أو تصوّر كشف الفصل والأسماء تتكتب هنا وتراجعها وتصلّح أي اسم قبل الحفظ.</div><textarea id="rNames" dir="rtl">'+eh(r.names.join('\n'))+'</textarea>'
- +'<div class="rrow"><button class="btn" data-a="saveNames">حفظ الأسماء</button><button class="btn alt" data-a="sortNames">🔤 ترتيب أبجدي</button><button class="btn ghost" data-a="clearNames">🗑 تراجع عن الاستيراد / مسح كل الأسماء</button><label class="btn alt" style="text-align:center;cursor:pointer">📷 من صورة<input type="file" accept="image/*" id="rPhoto" hidden></label><label class="btn alt" style="text-align:center;cursor:pointer">📄 من ملف Excel<input type="file" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" id="rXls" hidden></label><select id="rRot" class="btn alt" style="padding:6px"><option value="auto">لف الصورة: تلقائي</option><option value="0">بدون لف</option><option value="90">90° يمين</option><option value="270">90° شمال</option><option value="180">180°</option></select></div><div class="rn" id="rMsg"></div>'+gList(r)
+ +'<div class="rrow"><button class="btn alt" data-a="addM">＋ إضافة طالب (ولد)</button><button class="btn alt" data-a="addF">＋ إضافة طالبة (بنت)</button></div><div class="rrow"><button class="btn" data-a="saveNames">حفظ الأسماء</button><button class="btn alt" data-a="sortNames">🔤 ترتيب أبجدي</button><button class="btn ghost" data-a="clearNames">🗑 تراجع عن الاستيراد / مسح كل الأسماء</button><label class="btn alt" style="text-align:center;cursor:pointer">📷 من صورة<input type="file" accept="image/*" id="rPhoto" hidden></label><label class="btn alt" style="text-align:center;cursor:pointer">📄 من ملف Excel<input type="file" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" id="rXls" hidden></label><select id="rRot" class="btn alt" style="padding:6px"><option value="auto">لف الصورة: تلقائي</option><option value="0">بدون لف</option><option value="90">90° يمين</option><option value="270">90° شمال</option><option value="180">180°</option></select></div><div class="rn" id="rMsg"></div>'+'<div class="rrow" style="align-items:center"><label class="rn" style="margin:0">أقصى عدد كلمات في اسم الطالب <input type="number" id="nMax" min="2" max="8" value="'+nmax()+'" style="width:56px;text-align:center"></label><button class="btn ghost" data-a="trimAll">✂ قصّ الأسماء المحفوظة</button></div>'+sdBar(r)+gList(r)
  +'<div class="rn">شعار الوزارة (الافتراضي: شعار وزارة التربية والتعليم، أعلى يسار الورقة):</div><div class="rrow"><label class="btn alt" style="text-align:center;cursor:pointer">🖼 اختيار صورة الشعار<input type="file" accept="image/*" id="rLogo" hidden></label>'+(S.recLogo?'<button class="btn ghost" data-a="rmLogo">رجوع لشعار الوزارة</button>':'')+'</div><div class="rn">تاريخ بداية السجل (يوم سبت):</div><div class="rrow"><input type="date" id="rStart" value="'+r.start+'" style="flex:1"></div>'
  +'<div class="rn">ملحوظة: الترتيب أوتوماتيك (أولاد ثم بنات، أبجدي). لو الأسماء متسجل عليها غياب أو درجات، الغياب والدرجات بتنتقل مع كل طالب. لو اسم اتشال أو اتغير الترتيب ما بيتغيرش عشان البيانات ما تتلخبطش.</div>'}
 
@@ -2535,25 +2630,31 @@ function bind(){
   $('#rBody').addEventListener('input',e=>{if(e.target.id==='rNames')ND[RC]=e.target.value});
   $('#rTab').onclick=e=>{const b=e.target.closest('[data-v]');if(!b)return;if(window.__vxHide)window.__vxHide();if(b.dataset.v==='home'){RVH=[];rShow(false);cRender();return}if(RV!==b.dataset.v){RVH.push(RV);if(RVH.length>30)RVH.shift()}RV=b.dataset.v;RB=0;rRender()};
   $('#rBody').onclick=async e=>{const r=R(RC),t=e.target,b=t.closest('button[data-a]'),ab=t.closest('.ab');
+    const ge=t.closest('[data-ge]');if(ge){await srEdit(r,+ge.dataset.ge);return}
+    const gd=t.closest('[data-gd]');if(gd){await sdDel(r,+gd.dataset.gd);return}
     const gb=e.target.closest('[data-gi]');if(gb){const n=r.names[+gb.dataset.gi],o=gOf(r,n);r.gn=r.gn||{};r.gn[arK(n)]=o.sure?(o.g==='f'?'m':'f'):(o.g==='f'?'m':'f');save();rRender();return}
     if(ab){const k=ab.dataset.x+'|'+ab.dataset.d,v=r.mk[k]||'',n=v===''?'a':v==='a'?'e':'';if(n)r.mk[k]=n;else delete r.mk[k];save();ab.textContent=n==='a'?'غ':n==='e'?'ع':'';return}
     if(!b)return;const a=b.dataset.a;
     if(a==='prev'){RB=Math.max(0,RB-1);rRender()}
     else if(a==='next'){RB++;rRender()}
+    else if(a==='undoDel'){sdUndo(r)}
+    else if(a==='undoRen'){srUndo(r)}else if(a==='trimAll'){await ntAll(r)}else if(a==='undoTrim'){ntUndo(r)}
+    else if(a==='undoAdd'){saUndo(r)}
+    else if(a==='addM'||a==='addF'){await saAdd(r,a==='addF'?'f':'m')}
     else if(a==='term1'||a==='term2'){RT=a==='term2'?2:1;RB=0;rRender()}
     else if(a==='wkreset'){resetDerived(R(RC));save();rRender()}
     else if(a==='zi'){SZ=Math.min(1.6,SZ+0.15);rRender()}
     else if(a==='zo'){SZ=Math.max(0.3,SZ-0.15);rRender()}
     else if(a==='rmLogo'){delete S.recLogo;save();rRender()}
     else if(a==='vacp'){VP=!VP;rRender()}
-    else if(a==='saveNames'){delete ND[RC];let L=$('#rNames').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,ROWS);const hd=hasData(r);let note='';
-      if(!hd){L=arSorted(L,r).map(p=>p[0]);note=' (مترتبين: أولاد ثم بنات، أبجدي)'}
+    else if(a==='saveNames'){delete ND[RC];let L=$('#rNames').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,ROWS);const tx=trimList(L,r.names);L=tx.L;ntLog(RC,tx.pairs);const hd=hasData(r);let note=trimNote(tx);
+      if(!hd){L=arSorted(L,r).map(p=>p[0]);note=' (مترتبين: أولاد ثم بنات، أبجدي)'+trimNote(tx)}
       else{const pool=r.names.slice(),keep=L.every(n=>{const j=pool.indexOf(n);if(j<0)return false;pool.splice(j,1);return true})||false;const allOld=r.names.every(n=>L.includes(n));
         if(allOld){const old=r.names.slice();const P=arSorted(L,r),used={},map={};P.forEach((p,n)=>{let j=old.findIndex((o,k)=>o===p[0]&&!used[k]);if(j>=0){used[j]=1;map[j]=n}});
           const re=o=>{const q={};for(const k in o){const[i,...rest]=k.split('|');const n=map[+i];if(n!==undefined)q[n+(rest.length?'|'+rest.join('|'):'')]=o[k]}return q};
-          r.mk=re(r.mk||{});r.gr=re(r.gr||{});r.ex=re(r.ex||{});r.ex2=re(r.ex2||{});L=P.map(p=>p[0]);note=' (مترتبين: أولاد ثم بنات، أبجدي، والغياب والدرجات مع كل طالب)'}
+          r.mk=re(r.mk||{});r.gr=re(r.gr||{});r.ex=re(r.ex||{});r.ex2=re(r.ex2||{});L=P.map(p=>p[0]);note=' (مترتبين: أولاد ثم بنات، أبجدي، والغياب والدرجات مع كل طالب)'+trimNote(tx)}
         else note=' — فيه اسم اتشال أو اتغير والغياب/الدرجات متسجلين، فما رتبتش عشان ما تتلخبطش البيانات. رجّع الاسم أو دوس «ترتيب أبجدي»'}
-      r.names=L;save();rRender();$('#rMsg').textContent='اتحفظ: '+r.names.length+' طالب'+note+'.'}
+      r.names=L;save();rRender();$('#rMsg').textContent='اتحفظ: '+r.names.length+' طالب'+note.replace(/\.$/,'')+'.'}
     else if(a==='clearNames'){delete ND[RC];const n=Math.max(r.names.length,$('#rNames').value.split('\n').filter(s=>s.trim()).length);if(!n){$('#rMsg').textContent='مفيش أسماء تتمسح.';return}
       const hd=hasData(r);if(!confirm('هتمسح كل الأسماء ('+n+' طالب) من فصل '+RC+(hd?' ، وكمان الغياب والدرجات المسجلة عليهم':'')+'. متأكد؟'))return;
       r.names=[];r.gn={};if(hd){r.mk={};r.gr={};r.ex={};r.ex2={}}save();rRender();$('#rMsg').textContent='اتمسحت كل الأسماء. تقدر تستورد من جديد.'}
@@ -2572,7 +2673,7 @@ function bind(){
     if(t.dataset.wd!==undefined){const c=+t.dataset.wd;if(!t.value)return;r.shift=r.shift||{};const cur=wkInfo(r,c).s,nw=new Date(t.value+'T12:00:00'),dd=Math.round((nw-new Date(iso(cur)+'T12:00:00'))/864e5);r.shift[c]=(r.shift[c]||0)+dd;save();rRender();return}
     if(t.dataset.vc!==undefined){const c=+t.dataset.vc,i=r.vac.indexOf(c);if(t.checked&&i<0)r.vac.push(c);else if(!t.checked&&i>=0)r.vac.splice(i,1);save();rRender();return}
     if(t.id==='rTot'){r.tot=t.checked;save();rRender();return}
-    if(t.id==='rCnt'){r.cnt=t.value;save();return}
+    if(t.id==='nMax'){let v=Math.round(+t.value);if(!(v>=2&&v<=8))v=nmax();t.value=v;try{localStorage.setItem(NM_KEY,String(v))}catch(e){}sdMsg('الحد بقى '+v+' كلمات. بيتطبّق على الأسماء الجديدة بس. الأسماء المحفوظة ما بتتغيرش إلا لو دوست «قصّ الأسماء المحفوظة».');return}if(t.id==='rCnt'){r.cnt=t.value;save();return}
     if(t.id==='rPhoto'){ocrNames(t.files[0]);return}
     if(t.id==='rXls'){importNames(t.files[0]);t.value='';return}
     if(t.id==='rLogo'&&t.files[0]){const f=t.files[0],im=new Image();im.onload=()=>{const s=Math.min(im.width,im.height),cv=document.createElement('canvas');cv.width=cv.height=220;cv.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,220,220);S.recLogo=cv.toDataURL('image/png');save();rRender()};im.src=URL.createObjectURL(f);return}
@@ -2610,8 +2711,8 @@ async function ocrNames(f){if(!f)return;const m=$('#rMsg'),rot=($('#rRot')||{}).
     if(!L){try{m.textContent='بقرأ الصورة على الجهاز (من غير نت)... ممكن ياخد دقيقة';const g=await nmPaddle(cv,(a,b)=>{m.textContent='بقرأ الصورة على الجهاز... '+a+' / '+b});if(g.names.length>=5){L=g.names;how='قراءة على الجهاز'}}catch(e){console.error('paddle',e.message)}}
     if(!L){m.textContent='بقرأ بالطريقة الاحتياطية... (محتاج نت أول مرة لتحميل المكتبة)';L=await nmLocal(cv);how='قراءة على الجهاز (أقل دقة)'}
     {const rr=R(RC);if(!hasData(rr))L=arSorted(L,rr).map(p=>p[0])}
-    $('#rNames').value=L.join('\n');
-    m.textContent=how+': '+L.length+' اسم'+(cnt&&cnt!==L.length?' ⚠️ عدد الطلبة المكتوب في الكشف '+cnt+' — راجع الناقص أو الزايد':'')+'. راجع كل اسم وصلّح اللي غلط وبعدين دوس «حفظ الأسماء».'}
+    const tx=trimList(L,R(RC).names);L=tx.L;ntLog(RC,tx.pairs);$('#rNames').value=L.join('\n');
+    m.textContent=how+': '+L.length+' اسم'+(cnt&&cnt!==L.length?' ⚠️ عدد الطلبة المكتوب في الكشف '+cnt+' — راجع الناقص أو الزايد':'')+'. راجع كل اسم وصلّح اللي غلط وبعدين دوس «حفظ الأسماء».'+trimNote(tx)}
   catch(err){m.textContent='ما قدرتش أقرا الصورة. جرّب تلف الصورة من الاختيار، أو اكتب/الصق الأسماء.'}}
 
 async function zipRead(buf){const dv=new DataView(buf),u=new Uint8Array(buf);let e=buf.byteLength-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;if(e<0)throw new Error('zip');
@@ -2638,7 +2739,7 @@ async function importNames(f){if(!f)return;const m=$('#rMsg');
   try{let rows;if(/\.xlsx$/i.test(f.name)||/spreadsheetml/.test(f.type))rows=await xlsxRows(f);else if(/\.(csv|txt)$/i.test(f.name))rows=csvRows(await f.text());else{m.textContent='الملف لازم يكون Excel بصيغة xlsx (لو الملف xls قديم افتحه واحفظه xlsx) أو csv.';return}
     let L=pickNames(rows);if(!L.length){m.textContent='ما لقيتش عمود أسماء في الملف. تأكد إن فيه عمود اسم الطالب بالعربي.';return}
     {const rr=R(RC);if(!hasData(rr))L=arSorted(L,rr).map(p=>p[0])}
-    $('#rNames').value=L.join('\n');m.textContent='اتقرا من الملف '+L.length+' اسم. راجعهم وصلّح أي اسم وبعدين دوس «حفظ الأسماء».'}
+    const tx=trimList(L,R(RC).names);L=tx.L;ntLog(RC,tx.pairs);$('#rNames').value=L.join('\n');m.textContent='اتقرا من الملف '+L.length+' اسم. راجعهم وصلّح أي اسم وبعدين دوس «حفظ الأسماء».'+trimNote(tx)}
   catch(err){m.textContent='ما قدرتش أفتح الملف. جرّب تحفظه xlsx أو الصق الأسماء.'}}
 
 
@@ -2801,7 +2902,7 @@ function rail(){
   dock.addEventListener('touchmove',e=>{if(sx==null||!B.classList.contains('railopen'))return;const dx=e.touches[0].clientX-sx,dy=e.touches[0].clientY-sy;if(dx>35&&Math.abs(dx)>Math.abs(dy)){open(false);sx=null}},{passive:true});
 }
 /* ---- تحديث البرنامج من جوه التطبيق (APK بس): تنزيل نسخة جديدة، فحص، تطبيق بموافقة، ورجوع للنسخة اللي قبلها ---- */
-const APP_VER=84;
+const APP_VER=87;
 const UPD=window.AndroidUpd||null;
 let updPend=null;
 function updInfo(){try{return JSON.parse(UPD.info())}catch(e){return{}}}
